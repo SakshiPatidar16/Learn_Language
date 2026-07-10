@@ -1,0 +1,9 @@
+[
+  {
+    "id": "admin-1",
+    "email": "admin123@yopmail.com",
+    "password": "Admin@123",
+    "role": "admin",
+    "updatedAt": "2026-07-02T00:00:00.000Z"
+  }
+]

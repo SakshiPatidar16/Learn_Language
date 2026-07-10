@@ -1,0 +1,30 @@
+[
+  {
+    "id": "1",
+    "name": "Java",
+    "description": "A strongly typed, object-oriented language used in enterprise apps and Android development.",
+    "createdBy": "admin123@yopmail.com",
+    "updatedAt": "2026-07-02T00:00:00.000Z"
+  },
+  {
+    "id": "2",
+    "name": "Python",
+    "description": "A beginner-friendly language widely used for automation, web, and data science.",
+    "createdBy": "admin123@yopmail.com",
+    "updatedAt": "2026-07-02T00:00:00.000Z"
+  },
+  {
+    "id": "3",
+    "name": "JavaScript",
+    "description": "The core language of the web used for interactive frontend and backend development.",
+    "createdBy": "admin123@yopmail.com",
+    "updatedAt": "2026-07-02T00:00:00.000Z"
+  },
+  {
+    "id": "4",
+    "name": "C++",
+    "description": "A high-performance systems programming language used in games and real-time software.",
+    "createdBy": "admin123@yopmail.com",
+    "updatedAt": "2026-07-02T00:00:00.000Z"
+  }
+]
