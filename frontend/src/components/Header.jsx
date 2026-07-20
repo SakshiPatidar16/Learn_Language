@@ -15,16 +15,8 @@ function Header({ session, onLogout, onOpenSignIn, onOpenSignUp }) {
           </div>
         </div>
 
-        {session ? (
-          <button
-            type="button"
-            onClick={onLogout}
-            className="bg-white text-slate-900 px-4 py-2 rounded-lg font-semibold"
-          >
-            Logout 
-          </button>
-        ) : (
-          <div className="flex gap-2 self-end md:self-auto">
+        <div className="flex gap-2 self-end md:self-auto">
+          {!session ? (
             <button
               type="button"
               onClick={onOpenSignIn}
@@ -32,15 +24,22 @@ function Header({ session, onLogout, onOpenSignIn, onOpenSignUp }) {
             >
               Sign In
             </button>
-            <button
-              type="button"
-              onClick={onOpenSignUp}
-              className="bg-emerald-500 text-white px-4 py-2 rounded-lg font-semibold"
-            >
-              Sign Up
-            </button>
-          </div>
-        )}
+          ) : (
+            <div className="flex items-center gap-3 mr-2">
+              <span className="text-sm font-medium text-slate-300 hidden sm:inline">
+                {session.email}
+              </span>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={session ? onLogout : onOpenSignUp}
+            className="bg-emerald-500 text-white px-4 py-2 rounded-lg font-semibold"
+          >
+            {session ? "Sign Out" : "Sign Up"}
+          </button>
+        </div>
       </div>
     </header>
   );

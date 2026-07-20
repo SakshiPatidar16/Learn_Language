@@ -4,6 +4,10 @@ import Header from "./components/Header";
 import Login from "./components/Login";
 import Register from "./components/Register";
 import LanguageTerminal from "./components/LanguageTerminal";
+import UnitDetails from "./components/UnitDetails";
+import UnitForm from "./components/UnitForm";
+import ProgramForm from "./components/ProgramForm";
+import FileForm from "./components/FileForm";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
 
@@ -13,7 +17,10 @@ function App() {
   const [signupName, setSignupName] = useState("");
   const [signupPhone, setSignupPhone] = useState("");
   const [confirmPasswordInput, setConfirmPasswordInput] = useState("");
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState(() => {
+    const saved = localStorage.getItem("study_session");
+    return saved ? JSON.parse(saved) : null;
+  });
   const [languages, setLanguages] = useState([]);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,6 +31,16 @@ function App() {
   const [nameInput, setNameInput] = useState("");
   const [descriptionInput, setDescriptionInput] = useState("");
   const [editId, setEditId] = useState("");
+  const [isLanguageFormOpen, setIsLanguageFormOpen] = useState(false);
+
+  const [units, setUnits] = useState([]);
+  const [loadingUnits, setLoadingUnits] = useState(false);
+  const [isUnitFormOpen, setIsUnitFormOpen] = useState(false);
+  const [editingUnitId, setEditingUnitId] = useState("");
+  const [unitNameInput, setUnitNameInput] = useState("");
+  const [unitNotesInput, setUnitNotesInput] = useState("");
+  const [unitPdfFile, setUnitPdfFile] = useState(null);
+  const [unitWordFile, setUnitWordFile] = useState(null);
 
   const [programs, setPrograms] = useState([]);
   const [loadingPrograms, setLoadingPrograms] = useState(false);
@@ -32,6 +49,8 @@ function App() {
   const [questionInput, setQuestionInput] = useState("");
   const [codeInput, setCodeInput] = useState("");
   const [outputInput, setOutputInput] = useState("");
+
+  const [isFileFormOpen, setIsFileFormOpen] = useState(false);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -43,26 +62,51 @@ function App() {
   const showMainSections = !showAuthPage;
 
   const languagePathMatch = location.pathname.match(/^\/languages\/([^/]+)$/);
-  const terminalPathMatch = location.pathname.match(/^\/languages\/([^/]+)\/programs\/([^/]+)\/terminal$/);
+  const unitPathMatch = location.pathname.match(/^\/languages\/([^/]+)\/units\/([^/]+)$/);
+  const terminalPathMatch = location.pathname.match(/^\/languages\/([^/]+)\/units\/([^/]+)\/programs\/([^/]+)\/terminal$/);
+
   const activeLanguageId = terminalPathMatch
     ? decodeURIComponent(terminalPathMatch[1])
-    : languagePathMatch
-      ? decodeURIComponent(languagePathMatch[1])
+    : unitPathMatch
+      ? decodeURIComponent(unitPathMatch[1])
+      : languagePathMatch
+        ? decodeURIComponent(languagePathMatch[1])
+        : "";
+
+  const activeUnitId = terminalPathMatch
+    ? decodeURIComponent(terminalPathMatch[2])
+    : unitPathMatch
+      ? decodeURIComponent(unitPathMatch[2])
       : "";
-  const activeTerminalProgramId = terminalPathMatch ? decodeURIComponent(terminalPathMatch[2]) : "";
-  const isLanguageProgramsPage = Boolean(languagePathMatch);
+
+  const activeTerminalProgramId = terminalPathMatch ? decodeURIComponent(terminalPathMatch[3]) : "";
+
+  const isLanguageDetailsPage = Boolean(languagePathMatch);
+  const isUnitProgramsPage = Boolean(unitPathMatch);
   const isTerminalPage = Boolean(terminalPathMatch);
-  const showHomePage = showMainSections && !isLanguageProgramsPage && !isTerminalPage;
+  const showHomePage = showMainSections && !isLanguageDetailsPage && !isUnitProgramsPage && !isTerminalPage;
 
   const languageCount = languages.length;
   const activeLanguage = useMemo(
     () => languages.find((item) => item.id === activeLanguageId) || null,
     [languages, activeLanguageId]
   );
+  const activeUnit = useMemo(
+    () => units.find((item) => item.id === activeUnitId) || null,
+    [units, activeUnitId]
+  );
   const activeTerminalProgram = useMemo(
     () => programs.find((item) => item.id === activeTerminalProgramId) || null,
     [programs, activeTerminalProgramId]
   );
+
+  function clearUnitForm() {
+    setUnitNameInput("");
+    setUnitNotesInput("");
+    setUnitPdfFile(null);
+    setUnitWordFile(null);
+    setEditingUnitId("");
+  }
 
   function clearProgramForm() {
     setQuestionInput("");
@@ -115,14 +159,36 @@ function App() {
     }
   }
 
-  async function fetchPrograms(languageId) {
+  async function fetchUnits(languageId) {
     if (!languageId) return;
+
+    setLoadingUnits(true);
+    setError("");
+
+    try {
+      const res = await fetch(`${API_BASE}/public/languages/${languageId}/units`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to load units");
+      }
+
+      setUnits(data);
+    } catch (err) {
+      setError(err.message || "Failed to load units");
+    } finally {
+      setLoadingUnits(false);
+    }
+  }
+
+  async function fetchPrograms(unitId) {
+    if (!unitId) return;
 
     setLoadingPrograms(true);
     setError("");
 
     try {
-      const res = await fetch(`${API_BASE}/public/languages/${languageId}/programs`);
+      const res = await fetch(`${API_BASE}/public/units/${unitId}/programs`);
       const data = await res.json();
 
       if (!res.ok) {
@@ -155,6 +221,7 @@ function App() {
       }
 
       setSession(data);
+      localStorage.setItem("study_session", JSON.stringify(data));
       setShowAuthPrompt(false);
       navigate(requestedPath || "/");
       setRequestedPath("");
@@ -233,6 +300,7 @@ function App() {
       setNameInput("");
       setDescriptionInput("");
       setEditId("");
+      setIsLanguageFormOpen(false);
       await fetchLanguages(session);
     } catch (err) {
       setError(err.message || "Failed to save language");
@@ -271,11 +339,150 @@ function App() {
     setEditId(item.id);
     setNameInput(item.name);
     setDescriptionInput(item.description);
+    setIsLanguageFormOpen(true);
+  }
+
+  async function handleUnitSubmit(e) {
+    e.preventDefault();
+    if (!isAdmin || !session || !activeLanguageId) return;
+
+    setError("");
+    setMessage("");
+
+    const formData = new FormData();
+    formData.append("name", unitNameInput);
+    formData.append("notes", unitNotesInput);
+    if (unitPdfFile) formData.append("pdf", unitPdfFile);
+    if (unitWordFile) formData.append("word", unitWordFile);
+
+    const isEdit = Boolean(editingUnitId);
+    const url = isEdit
+      ? `${API_BASE}/units/${editingUnitId}`
+      : `${API_BASE}/languages/${activeLanguageId}/units`;
+    const method = isEdit ? "PUT" : "POST";
+
+    try {
+      const res = await fetch(url, {
+        method,
+        headers: {
+          Authorization: `Bearer ${session.token}`
+        },
+        body: formData
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to save unit");
+      }
+
+      clearUnitForm();
+      setIsUnitFormOpen(false);
+      setMessage(isEdit ? "Unit updated successfully." : "Unit added successfully.");
+      await fetchUnits(activeLanguageId);
+    } catch (err) {
+      setError(err.message || "Failed to save unit");
+    }
+  }
+
+  async function handleUnitFileUpload(file, name, description) {
+    if (!isAdmin || !session || !activeUnitId || !file) return;
+
+    setError("");
+    setMessage("");
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("name", name || file.name);
+    if (description) {
+      formData.append("description", description);
+    }
+
+    try {
+      const res = await fetch(`${API_BASE}/units/${activeUnitId}/files`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.token}`
+        },
+        body: formData
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to upload file");
+      }
+
+      setMessage("File uploaded successfully.");
+      setIsFileFormOpen(false);
+      await fetchUnits(activeLanguageId);
+    } catch (err) {
+      setError(err.message || "Failed to upload file");
+    }
+  }
+
+  async function handleRemoveFile(fileId) {
+    if (!isAdmin || !session || !activeUnitId || !fileId) return;
+    if (!confirm("Are you sure you want to remove this file?")) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/units/${activeUnitId}/files/${fileId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${session.token}`
+        }
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.message || "Failed to remove file");
+      }
+
+      setMessage("File removed successfully.");
+      await fetchUnits(activeLanguageId);
+    } catch (err) {
+      setError(err.message || "Failed to remove file");
+    }
+  }
+
+  async function handleUnitDelete(unitId) {
+    if (!isAdmin || !session || !unitId) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/units/${unitId}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${session.token}`
+        }
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to delete unit");
+      }
+
+      if (activeUnitId === unitId) {
+        navigate(`/languages/${encodeURIComponent(activeLanguageId)}`);
+      }
+
+      setMessage("Unit deleted successfully.");
+      await fetchUnits(activeLanguageId);
+    } catch (err) {
+      setError(err.message || "Failed to delete unit");
+    }
+  }
+
+  function startUnitEdit(unit) {
+    if (!isAdmin) return;
+    setIsUnitFormOpen(true);
+    setEditingUnitId(unit.id);
+    setUnitNameInput(unit.name);
+    setUnitNotesInput(unit.notes || "");
+    setUnitPdfFile(null);
+    setUnitWordFile(null);
   }
 
   async function handleProgramSubmit(e) {
     e.preventDefault();
-    if (!isAdmin || !session || !activeLanguageId) return;
+    if (!isAdmin || !session || !activeUnitId) return;
 
     setError("");
     setMessage("");
@@ -289,7 +496,7 @@ function App() {
     const isEdit = Boolean(editingProgramId);
     const url = isEdit
       ? `${API_BASE}/programs/${editingProgramId}`
-      : `${API_BASE}/languages/${activeLanguageId}/programs`;
+      : `${API_BASE}/units/${activeUnitId}/programs`;
     const method = isEdit ? "PUT" : "POST";
 
     try {
@@ -310,7 +517,7 @@ function App() {
       clearProgramForm();
       setIsProgramFormOpen(false);
       setMessage(isEdit ? "Program updated successfully." : "Program added successfully.");
-      await fetchPrograms(activeLanguageId);
+      await fetchPrograms(activeUnitId);
     } catch (err) {
       setError(err.message || "Failed to save program");
     }
@@ -338,13 +545,37 @@ function App() {
       }
 
       if (isTerminalPage && activeTerminalProgramId === programId) {
-        navigate(`/languages/${encodeURIComponent(activeLanguageId)}`);
+        navigate(`/languages/${encodeURIComponent(activeLanguageId)}/units/${encodeURIComponent(activeUnitId)}`);
       }
 
       setMessage("Program deleted successfully.");
-      await fetchPrograms(activeLanguageId);
+      await fetchPrograms(activeUnitId);
     } catch (err) {
       setError(err.message || "Failed to delete program");
+    }
+  }
+
+  async function clearAllPrograms() {
+    if (!isAdmin || !session) return;
+    if (!confirm("Are you sure you want to delete ALL programs? This cannot be undone.")) return;
+
+    try {
+      const res = await fetch(`${API_BASE}/cleanup/programs`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${session.token}`
+        }
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to clear programs");
+      }
+
+      setPrograms([]);
+      setMessage("All programs cleared successfully.");
+    } catch (err) {
+      setError(err.message || "Failed to clear programs");
     }
   }
 
@@ -357,7 +588,7 @@ function App() {
     setOutputInput(program.output);
   }
 
-  function openLanguagePrograms(language) {
+  function openLanguageDetails(language) {
     const path = `/languages/${encodeURIComponent(language.id)}`;
 
     if (!session) {
@@ -368,9 +599,19 @@ function App() {
 
     setError("");
     setMessage("");
+    setUnits([]);
+    setIsUnitFormOpen(false);
+    clearUnitForm();
+    navigate(path);
+  }
+
+  function openUnitPrograms(unit) {
+    const path = `/languages/${encodeURIComponent(activeLanguageId)}/units/${encodeURIComponent(unit.id)}`;
+    setError("");
+    setMessage("");
     setPrograms([]);
-    clearProgramForm();
     setIsProgramFormOpen(false);
+    clearProgramForm();
     navigate(path);
   }
 
@@ -386,7 +627,9 @@ function App() {
 
   function logout() {
     setSession(null);
+    localStorage.removeItem("study_session");
     setLanguages([]);
+    setUnits([]);
     setPrograms([]);
     setNameInput("");
     setDescriptionInput("");
@@ -395,14 +638,21 @@ function App() {
     setPasswordInput("");
     setMessage("");
     setError("");
+    clearUnitForm();
     clearProgramForm();
+    setIsUnitFormOpen(false);
     setIsProgramFormOpen(false);
+    setIsLanguageFormOpen(false);
     navigate("/");
     fetchPublicLanguages();
   }
 
   useEffect(() => {
-    fetchPublicLanguages();
+    if (session) {
+      fetchLanguages(session);
+    } else {
+      fetchPublicLanguages();
+    }
   }, []);
 
   useEffect(() => {
@@ -416,10 +666,16 @@ function App() {
   }, [location.pathname, navigate, session]);
 
   useEffect(() => {
-    if (session && showMainSections && activeLanguageId && (isLanguageProgramsPage || isTerminalPage)) {
-      fetchPrograms(activeLanguageId);
+    if (session && showMainSections && activeLanguageId && (isLanguageDetailsPage || isUnitProgramsPage || isTerminalPage)) {
+      fetchUnits(activeLanguageId);
     }
-  }, [session, showMainSections, isLanguageProgramsPage, isTerminalPage, activeLanguageId]);
+  }, [session, showMainSections, activeLanguageId, isLanguageDetailsPage, isUnitProgramsPage, isTerminalPage]);
+
+  useEffect(() => {
+    if (session && showMainSections && activeUnitId && (isUnitProgramsPage || isTerminalPage)) {
+      fetchPrograms(activeUnitId);
+    }
+  }, [session, showMainSections, activeUnitId, isUnitProgramsPage, isTerminalPage]);
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-100 via-cyan-50 to-emerald-50">
@@ -520,37 +776,48 @@ function App() {
 
       {showHomePage && isAdmin ? (
         <section className="max-w-6xl mx-auto mt-5 px-4 md:px-6">
-          <div className="bg-white rounded-2xl shadow-md p-4 md:p-6 border border-slate-100">
-            <h2 className="text-xl font-semibold text-slate-800">
-              {editId ? "Edit Language" : "Add Language"}
-            </h2>
-            <form onSubmit={handleAddOrUpdate} className="grid gap-3 mt-4">
-              <input
-                type="text"
-                placeholder="Language name"
-                value={nameInput}
-                onChange={(e) => setNameInput(e.target.value)}
-                className="border border-slate-300 rounded-lg p-3"
-                required
-              />
-              <textarea
-                placeholder="Language description"
-                value={descriptionInput}
-                onChange={(e) => setDescriptionInput(e.target.value)}
-                className="border border-slate-300 rounded-lg p-3 min-h-28"
-                required
-              />
-              <div className="flex gap-3">
-                <button
-                  type="submit"
-                  className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-semibold"
-                >
-                  {editId ? "Update" : "Add"}
-                </button>
-                {editId ? (
+          {!isLanguageFormOpen ? (
+            <div className="flex justify-start">
+              <button
+                type="button"
+                onClick={() => setIsLanguageFormOpen(true)}
+                className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95"
+              >
+                + Add Language
+              </button>
+            </div>
+          ) : (
+            <div className="bg-white rounded-2xl shadow-md p-4 md:p-6 border border-slate-100 animate-in fade-in slide-in-from-top-4 duration-300">
+              <h2 className="text-xl font-semibold text-slate-800">
+                {editId ? "Edit Language" : "Add Language"}
+              </h2>
+              <form onSubmit={handleAddOrUpdate} className="grid gap-3 mt-4">
+                <input
+                  type="text"
+                  placeholder="Language name"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  className="border border-slate-300 rounded-lg p-3"
+                  required
+                />
+                <textarea
+                  placeholder="Language description"
+                  value={descriptionInput}
+                  onChange={(e) => setDescriptionInput(e.target.value)}
+                  className="border border-slate-300 rounded-lg p-3 min-h-28"
+                  required
+                />
+                <div className="flex gap-3">
+                  <button
+                    type="submit"
+                    className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-semibold"
+                  >
+                    {editId ? "Update" : "Add"}
+                  </button>
                   <button
                     type="button"
                     onClick={() => {
+                      setIsLanguageFormOpen(false);
                       setEditId("");
                       setNameInput("");
                       setDescriptionInput("");
@@ -559,10 +826,10 @@ function App() {
                   >
                     Cancel
                   </button>
-                ) : null}
-              </div>
-            </form>
-          </div>
+                </div>
+              </form>
+            </div>
+          )}
         </section>
       ) : null}
 
@@ -577,7 +844,7 @@ function App() {
           {languages.map((item) => (
             <article
               key={item.id}
-              onClick={() => openLanguagePrograms(item)}
+              onClick={() => openLanguageDetails(item)}
               className="bg-white rounded-2xl shadow-md p-5 border border-slate-100 hover:-translate-y-1 hover:shadow-lg transition cursor-pointer"
             >
               <div className="flex items-center justify-between gap-3">
@@ -595,11 +862,11 @@ function App() {
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
-                  openLanguagePrograms(item);
+                  openLanguageDetails(item);
                 }}
                 className="mt-4 bg-slate-100 text-slate-800 px-3 py-2 rounded-lg text-sm font-medium"
               >
-                Open Programs
+                Open Details
               </button>
 
               {isAdmin ? (
@@ -631,7 +898,7 @@ function App() {
         </section>
       ) : null}
 
-      {session && showMainSections && isLanguageProgramsPage ? (
+      {session && showMainSections && isLanguageDetailsPage ? (
         <section className="max-w-6xl mx-auto mt-5 px-4 md:px-6 pb-10">
           <div className="bg-white rounded-2xl shadow-md border border-slate-100 p-5 md:p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -641,136 +908,137 @@ function App() {
                   onClick={() => navigate("/")}
                   className="text-sm text-slate-600 hover:text-slate-900"
                 >
-                  Back to Languages
+                  &larr; Back to Languages
                 </button>
                 <h2 className="text-2xl md:text-3xl font-bold text-slate-800 mt-1">
-                  {activeLanguage ? `${activeLanguage.name} Programs` : "Language Programs"}
+                  {activeLanguage ? `${activeLanguage.name} Units` : "Language Units"}
                 </h2>
-                <p className="text-sm text-slate-500 mt-1">All questions with code and output.</p>
+                <p className="text-sm text-slate-500 mt-1">Select a unit to view notes and programs.</p>
               </div>
 
               {isAdmin ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    clearProgramForm();
-                    setIsProgramFormOpen((prev) => !prev);
-                  }}
-                  className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-semibold"
-                >
-                  {isProgramFormOpen ? "Close Add Form" : "Add Program"}
-                </button>
-              ) : null}
-            </div>
-
-            {isAdmin && isProgramFormOpen ? (
-              <form
-                onSubmit={handleProgramSubmit}
-                className="grid gap-3 mt-5 bg-slate-50 border border-slate-200 rounded-xl p-4"
-              >
-                <h3 className="text-lg font-semibold text-slate-800">
-                  {editingProgramId ? "Edit Program" : "Add Program"}
-                </h3>
-                <input
-                  type="text"
-                  value={questionInput}
-                  onChange={(e) => setQuestionInput(e.target.value)}
-                  placeholder="Question"
-                  className="border border-slate-300 rounded-lg p-3"
-                  required
-                />
-                <textarea
-                  value={codeInput}
-                  onChange={(e) => setCodeInput(e.target.value)}
-                  placeholder="Code"
-                  className="border border-slate-300 rounded-lg p-3 min-h-36 font-mono text-sm"
-                  required
-                />
-                <textarea
-                  value={outputInput}
-                  onChange={(e) => setOutputInput(e.target.value)}
-                  placeholder="Output"
-                  className="border border-slate-300 rounded-lg p-3 min-h-24 font-mono text-sm"
-                  required
-                />
                 <div className="flex gap-2">
-                  <button
-                    type="submit"
-                    className="bg-slate-900 text-white px-4 py-2 rounded-lg font-semibold"
-                  >
-                    {editingProgramId ? "Update" : "Add"}
-                  </button>
                   <button
                     type="button"
                     onClick={() => {
-                      clearProgramForm();
-                      setIsProgramFormOpen(false);
+                      clearUnitForm();
+                      setIsUnitFormOpen((prev) => !prev);
                     }}
-                    className="bg-slate-200 text-slate-900 px-4 py-2 rounded-lg font-semibold"
+                    className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-semibold"
                   >
-                    Cancel
+                    {isUnitFormOpen ? "Close Unit Form" : "Add Unit"}
                   </button>
                 </div>
-              </form>
+              ) : null}
+            </div>
+
+            {isAdmin && isUnitFormOpen ? (
+              <UnitForm
+                editingUnitId={editingUnitId}
+                unitNameInput={unitNameInput}
+                setUnitNameInput={setUnitNameInput}
+                unitNotesInput={unitNotesInput}
+                setUnitNotesInput={setUnitNotesInput}
+                handleUnitSubmit={handleUnitSubmit}
+                clearUnitForm={clearUnitForm}
+                setIsUnitFormOpen={setIsUnitFormOpen}
+              />
             ) : null}
 
-            <div className="grid gap-4 mt-5">
-              {loadingPrograms ? <p className="text-slate-600">Loading programs...</p> : null}
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+              {loadingUnits ? <p className="text-slate-600">Loading units...</p> : null}
 
-              {!loadingPrograms && programs.length === 0 ? (
-                <p className="text-slate-600">No programs available for this language.</p>
+              {!loadingUnits && units.length === 0 ? (
+                <p className="text-slate-600 col-span-full">No units available for this language.</p>
               ) : null}
 
-              {programs.map((program) => (
-                <article key={program.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                  <h3 className="text-lg font-semibold text-slate-800">Q. {program.question}</h3>
-
-                  <div className="mt-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Code</p>
-                    <pre className="mt-2 bg-slate-900 text-slate-100 rounded-lg p-3 overflow-auto text-sm">{program.code}</pre>
-                  </div>
-
-                  <div className="mt-3">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Output</p>
-                    <pre className="mt-2 bg-slate-100 text-slate-800 rounded-lg p-3 border border-slate-200 overflow-auto text-sm">{program.output}</pre>
-                  </div>
-
-                  {isAdmin ? (
-                    <div className="mt-4 flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => startProgramEdit(program)}
-                        className="bg-blue-600 text-white px-3 py-2 rounded-lg text-sm"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleProgramDelete(program.id)}
-                        className="bg-red-600 text-white px-3 py-2 rounded-lg text-sm"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  ) : null}
-
-                  <div className="mt-4">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        openProtectedPage(
-                          `/languages/${encodeURIComponent(activeLanguageId)}/programs/${encodeURIComponent(program.id)}/terminal`
-                        )
-                      }
-                      className="bg-slate-900 text-white px-3 py-2 rounded-lg text-sm"
-                    >
-                      Terminal
-                    </button>
+              {units.map((unit) => (
+                <article
+                  key={unit.id}
+                  onClick={() => openUnitPrograms(unit)}
+                  className="group relative border border-slate-200 bg-slate-50 p-5 rounded-2xl hover:border-emerald-300 hover:bg-emerald-50/30 transition cursor-pointer"
+                >
+                  <h3 className="text-lg font-bold text-slate-800 group-hover:text-emerald-700">
+                    {unit.name}
+                  </h3>
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-xs text-slate-500">View Notes & Programs &rarr;</span>
+                    {isAdmin ? (
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            startUnitEdit(unit);
+                          }}
+                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleUnitDelete(unit.id);
+                          }}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
                 </article>
               ))}
             </div>
           </div>
+        </section>
+      ) : null}
+
+      {session && showMainSections && isUnitProgramsPage ? (
+        <section className="max-w-6xl mx-auto mt-5 px-4 md:px-6 pb-10">
+          <UnitDetails
+            activeUnit={activeUnit}
+            activeLanguage={activeLanguage}
+            isAdmin={isAdmin}
+            API_BASE={API_BASE}
+            handleUnitFileUpload={handleUnitFileUpload}
+            handleRemoveFile={handleRemoveFile}
+            isProgramFormOpen={isProgramFormOpen}
+            setIsProgramFormOpen={setIsProgramFormOpen}
+            isFileFormOpen={isFileFormOpen}
+            setIsFileFormOpen={setIsFileFormOpen}
+            clearProgramForm={clearProgramForm}
+            programs={programs}
+            loadingPrograms={loadingPrograms}
+            startProgramEdit={startProgramEdit}
+            handleProgramDelete={handleProgramDelete}
+            navigate={navigate}
+            activeLanguageId={activeLanguageId}
+            activeUnitId={activeUnitId}
+          />
+
+          {isAdmin && isFileFormOpen ? (
+            <FileForm
+              onSubmit={handleUnitFileUpload}
+              onCancel={() => setIsFileFormOpen(false)}
+            />
+          ) : null}
+
+          {isAdmin && isProgramFormOpen ? (
+            <ProgramForm
+              editingProgramId={editingProgramId}
+              questionInput={questionInput}
+              setQuestionInput={setQuestionInput}
+              codeInput={codeInput}
+              setCodeInput={setCodeInput}
+              outputInput={outputInput}
+              setOutputInput={setOutputInput}
+              handleProgramSubmit={handleProgramSubmit}
+              clearProgramForm={clearProgramForm}
+              setIsProgramFormOpen={setIsProgramFormOpen}
+            />
+          ) : null}
         </section>
       ) : null}
 
@@ -781,10 +1049,10 @@ function App() {
               <div>
                 <button
                   type="button"
-                  onClick={() => navigate(`/languages/${encodeURIComponent(activeLanguageId)}`)}
+                  onClick={() => navigate(`/languages/${encodeURIComponent(activeLanguageId)}/units/${encodeURIComponent(activeUnitId)}`)}
                   className="text-sm text-slate-600 hover:text-slate-900"
                 >
-                  Back to Programs
+                  &larr; Back to Unit
                 </button>
                 <h2 className="text-2xl md:text-3xl font-bold text-slate-800 mt-1">
                   Terminal - {activeLanguage?.name || "Language"}

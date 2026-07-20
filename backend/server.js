@@ -6,6 +6,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { MongoClient } from "mongodb";
+import multer from "multer";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -16,6 +17,7 @@ const MONGODB_DB_NAME = (process.env.MONGODB_DB_NAME || "study_program").trim();
 const MONGODB_COLLECTION = (process.env.MONGODB_COLLECTION || "languages").trim();
 const MONGODB_USERS_COLLECTION = (process.env.MONGODB_USERS_COLLECTION || "users").trim();
 const MONGODB_PROGRAMS_COLLECTION = (process.env.MONGODB_PROGRAMS_COLLECTION || "programs").trim();
+const MONGODB_UNITS_COLLECTION = (process.env.MONGODB_UNITS_COLLECTION || "units").trim();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -26,9 +28,23 @@ let mongoClient = null;
 let languagesCollection = null;
 let usersCollection = null;
 let programsCollection = null;
+let unitsCollection = null;
+
+const storage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, "uploads/");
+  },
+  filename: (_req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + "-" + file.originalname);
+  }
+});
+
+const upload = multer({ storage });
 
 app.use(cors());
 app.use(express.json());
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 function makeToken(email, role) {
   return Buffer.from(`${email}|${role}`).toString("base64url");
@@ -150,6 +166,7 @@ async function initStorage() {
   languagesCollection = db.collection(MONGODB_COLLECTION);
   usersCollection = db.collection(MONGODB_USERS_COLLECTION);
   programsCollection = db.collection(MONGODB_PROGRAMS_COLLECTION);
+  unitsCollection = db.collection(MONGODB_UNITS_COLLECTION);
 
   const count = await languagesCollection.countDocuments();
   if (count === 0) {
@@ -223,21 +240,117 @@ async function deleteLanguageById(id) {
     await programsCollection.deleteMany({ languageId: id });
   }
 
+  if (unitsCollection) {
+    await unitsCollection.deleteMany({ languageId: id });
+  }
+
   return existing;
 }
 
-async function getProgramsByLanguageId(languageId) {
+async function getUnitsByLanguageId(languageId) {
+  if (!unitsCollection) {
+    throw new Error("Database not connected");
+  }
+
+  return unitsCollection
+    .find({ languageId }, { projection: { _id: 0 } })
+    .sort({ name: 1 })
+    .toArray();
+}
+
+async function createUnit({ languageId, name, notes, pdfPath, wordPath, email }) {
+  if (!unitsCollection) {
+    throw new Error("Database not connected");
+  }
+
+  const files = [];
+  if (pdfPath) files.push({ id: randomUUID(), name: "Initial PDF", path: pdfPath, type: "pdf" });
+  if (wordPath) files.push({ id: randomUUID(), name: "Initial Word", path: wordPath, type: "word" });
+
+  const unit = {
+    id: randomUUID(),
+    languageId,
+    name,
+    notes,
+    files,
+    createdBy: email,
+    updatedAt: new Date().toISOString()
+  };
+
+  await unitsCollection.insertOne(unit);
+  return unit;
+}
+
+async function updateUnitById(unitId, { name, notes, files }) {
+  if (!unitsCollection) {
+    throw new Error("Database not connected");
+  }
+
+  const existing = await unitsCollection.findOne({ id: unitId });
+  if (!existing) return null;
+
+  const updated = {
+    ...existing,
+    name: name !== undefined ? name : existing.name,
+    notes: notes !== undefined ? notes : existing.notes,
+    files: files !== undefined ? files : existing.files,
+    updatedAt: new Date().toISOString()
+  };
+
+  await unitsCollection.replaceOne({ id: unitId }, updated);
+  const { _id: _ignoredId, ...sanitized } = updated;
+  return sanitized;
+}
+
+async function addFileToUnit(unitId, { name, description, path, type }) {
+  if (!unitsCollection) {
+    throw new Error("Database not connected");
+  }
+
+  const existing = await unitsCollection.findOne({ id: unitId });
+  if (!existing) return null;
+
+  const files = existing.files || [];
+  const newFile = { id: randomUUID(), name, description, path, type };
+  files.push(newFile);
+
+  await unitsCollection.updateOne(
+    { id: unitId },
+    { $set: { files, updatedAt: new Date().toISOString() } }
+  );
+
+  return newFile;
+}
+
+async function deleteUnitById(unitId) {
+  if (!unitsCollection) {
+    throw new Error("Database not connected");
+  }
+
+  const existing = await unitsCollection.findOne({ id: unitId }, { projection: { _id: 0 } });
+  if (!existing) return null;
+
+  await unitsCollection.deleteOne({ id: unitId });
+
+  if (programsCollection) {
+    await programsCollection.deleteMany({ unitId });
+  }
+
+  return existing;
+}
+
+async function getProgramsByUnitId(unitId) {
   if (!programsCollection) {
     throw new Error("Database not connected");
   }
 
   return programsCollection
-    .find({ languageId }, { projection: { _id: 0 } })
+    .find({ unitId }, { projection: { _id: 0 } })
     .sort({ updatedAt: -1 })
     .toArray();
 }
 
-async function createProgram({ languageId, question, code, output, email }) {
+async function createProgram({ languageId, unitId, question, code, output, email }) {
   if (!programsCollection) {
     throw new Error("Database not connected");
   }
@@ -245,6 +358,7 @@ async function createProgram({ languageId, question, code, output, email }) {
   const program = {
     id: randomUUID(),
     languageId,
+    unitId,
     question,
     code,
     output,
@@ -327,17 +441,200 @@ app.get("/api/public/languages", async (_req, res) => {
   }
 });
 
-app.get("/api/public/languages/:languageId/programs", async (req, res) => {
+app.get("/api/public/languages/:languageId/units", async (req, res) => {
   try {
     const languageId = (req.params.languageId || "").trim();
     if (!languageId) {
       return res.status(400).json({ message: "Language id is required" });
     }
 
-    const programs = await getProgramsByLanguageId(languageId);
+    const units = await getUnitsByLanguageId(languageId);
+    res.json(units);
+  } catch {
+    res.status(500).json({ message: "Failed to load units. Database is required." });
+  }
+});
+
+app.get("/api/public/units/:unitId/programs", async (req, res) => {
+  try {
+    const unitId = (req.params.unitId || "").trim();
+    if (!unitId) {
+      return res.status(400).json({ message: "Unit id is required" });
+    }
+
+    const programs = await getProgramsByUnitId(unitId);
     res.json(programs);
   } catch {
     res.status(500).json({ message: "Failed to load programs. Database is required." });
+  }
+});
+
+app.post("/api/languages/:languageId/units", auth, adminOnly, upload.fields([{ name: 'pdf', maxCount: 1 }, { name: 'word', maxCount: 1 }]), async (req, res) => {
+  const languageId = (req.params.languageId || "").trim();
+  const name = (req.body?.name || "").trim();
+  const notes = (req.body?.notes || "").trim();
+
+  if (!languageId) {
+    return res.status(400).json({ message: "Language id is required" });
+  }
+
+  if (!name) {
+    return res.status(400).json({ message: "Unit name is required" });
+  }
+
+  const pdfPath = req.files?.["pdf"]?.[0]?.path;
+  const wordPath = req.files?.["word"]?.[0]?.path;
+
+  try {
+    const unit = await createUnit({
+      languageId,
+      name,
+      notes,
+      pdfPath,
+      wordPath,
+      email: ADMIN_EMAIL
+    });
+
+    res.status(201).json(unit);
+  } catch {
+    res.status(500).json({ message: "Failed to create unit. Database is required." });
+  }
+});
+
+app.put("/api/units/:unitId", auth, adminOnly, async (req, res) => {
+  const unitId = (req.params.unitId || "").trim();
+  const name = (req.body?.name || "").trim();
+  const notes = (req.body?.notes || "").trim();
+
+  if (!unitId) {
+    return res.status(400).json({ message: "Unit id is required" });
+  }
+
+  if (!name) {
+    return res.status(400).json({ message: "Unit name is required" });
+  }
+
+  try {
+    const updated = await updateUnitById(unitId, {
+      name,
+      notes
+    });
+
+    if (!updated) {
+      return res.status(404).json({ message: "Unit not found" });
+    }
+
+    res.json(updated);
+  } catch {
+    res.status(500).json({ message: "Failed to update unit. Database is required." });
+  }
+});
+
+app.post("/api/units/:unitId/files", auth, adminOnly, upload.single("file"), async (req, res) => {
+  const unitId = (req.params.unitId || "").trim();
+  if (!unitId) return res.status(400).json({ message: "Unit id is required" });
+  if (!req.file) return res.status(400).json({ message: "No file uploaded" });
+
+  const type = req.file.mimetype === "application/pdf" ? "pdf" : "word";
+  const name = req.body?.name || req.file.originalname;
+  const description = req.body?.description || "";
+
+  try {
+    const newFile = await addFileToUnit(unitId, {
+      name,
+      description,
+      path: req.file.path,
+      type
+    });
+
+    if (!newFile) return res.status(404).json({ message: "Unit not found" });
+    res.status(201).json(newFile);
+  } catch {
+    res.status(500).json({ message: "Failed to upload file" });
+  }
+});
+
+app.delete("/api/units/:unitId/files/:fileId", auth, adminOnly, async (req, res) => {
+  const { unitId, fileId } = req.params;
+
+  try {
+    if (!unitsCollection) return res.status(500).json({ message: "Database not connected" });
+    
+    const unit = await unitsCollection.findOne({ id: unitId });
+    if (!unit) return res.status(404).json({ message: "Unit not found" });
+
+    const files = (unit.files || []).filter(f => f.id !== fileId);
+    await unitsCollection.updateOne({ id: unitId }, { $set: { files } });
+    
+    res.json({ message: "File removed successfully" });
+  } catch {
+    res.status(500).json({ message: "Failed to remove file" });
+  }
+});
+
+app.delete("/api/units/:unitId", auth, adminOnly, async (req, res) => {
+  const unitId = (req.params.unitId || "").trim();
+
+  if (!unitId) {
+    return res.status(400).json({ message: "Unit id is required" });
+  }
+
+  try {
+    const deleted = await deleteUnitById(unitId);
+    if (!deleted) {
+      return res.status(404).json({ message: "Unit not found" });
+    }
+
+    res.json({ message: "Unit and its programs deleted successfully" });
+  } catch {
+    res.status(500).json({ message: "Failed to delete unit. Database is required." });
+  }
+});
+
+app.delete("/api/cleanup/programs", auth, adminOnly, async (_req, res) => {
+  try {
+    if (!programsCollection) {
+      return res.status(500).json({ message: "Database not connected" });
+    }
+    await programsCollection.deleteMany({});
+    res.json({ message: "All programs deleted successfully" });
+  } catch {
+    res.status(500).json({ message: "Failed to clear programs" });
+  }
+});
+
+app.post("/api/units/:unitId/programs", auth, adminOnly, async (req, res) => {
+  const unitId = (req.params.unitId || "").trim();
+  const question = (req.body?.question || "").trim();
+  const code = (req.body?.code || "").trim();
+  const output = (req.body?.output || "").trim();
+
+  if (!unitId) {
+    return res.status(400).json({ message: "Unit id is required" });
+  }
+
+  if (!question || !code || !output) {
+    return res.status(400).json({ message: "Question, code and output are required" });
+  }
+
+  try {
+    const unit = await unitsCollection.findOne({ id: unitId }, { projection: { _id: 0 } });
+    if (!unit) {
+      return res.status(404).json({ message: "Unit not found" });
+    }
+
+    const program = await createProgram({
+      languageId: unit.languageId,
+      unitId,
+      question,
+      code,
+      output,
+      email: ADMIN_EMAIL
+    });
+
+    res.status(201).json(program);
+  } catch {
+    res.status(500).json({ message: "Failed to create program. Database is required." });
   }
 });
 
@@ -459,85 +756,6 @@ app.post("/api/languages", auth, adminOnly, async (req, res) => {
   }
 });
 
-app.post("/api/languages/:languageId/programs", auth, adminOnly, async (req, res) => {
-  const languageId = (req.params.languageId || "").trim();
-  const question = (req.body?.question || "").trim();
-  const code = (req.body?.code || "").trim();
-  const output = (req.body?.output || "").trim();
-
-  if (!languageId) {
-    return res.status(400).json({ message: "Language id is required" });
-  }
-
-  if (!question || !code || !output) {
-    return res.status(400).json({ message: "Question, code and output are required" });
-  }
-
-  try {
-    const language = await languagesCollection.findOne({ id: languageId }, { projection: { _id: 0 } });
-    if (!language) {
-      return res.status(404).json({ message: "Language not found" });
-    }
-
-    const program = await createProgram({
-      languageId,
-      question,
-      code,
-      output,
-      email: ADMIN_EMAIL
-    });
-
-    res.status(201).json(program);
-  } catch {
-    res.status(500).json({ message: "Failed to create program. Database is required." });
-  }
-});
-
-app.put("/api/programs/:programId", auth, adminOnly, async (req, res) => {
-  const programId = (req.params.programId || "").trim();
-  const question = (req.body?.question || "").trim();
-  const code = (req.body?.code || "").trim();
-  const output = (req.body?.output || "").trim();
-
-  if (!programId) {
-    return res.status(400).json({ message: "Program id is required" });
-  }
-
-  if (!question || !code || !output) {
-    return res.status(400).json({ message: "Question, code and output are required" });
-  }
-
-  try {
-    const updated = await updateProgramById(programId, { question, code, output });
-    if (!updated) {
-      return res.status(404).json({ message: "Program not found" });
-    }
-
-    res.json(updated);
-  } catch {
-    res.status(500).json({ message: "Failed to update program. Database is required." });
-  }
-});
-
-app.delete("/api/programs/:programId", auth, adminOnly, async (req, res) => {
-  const programId = (req.params.programId || "").trim();
-
-  if (!programId) {
-    return res.status(400).json({ message: "Program id is required" });
-  }
-
-  try {
-    const deleted = await deleteProgramById(programId);
-    if (!deleted) {
-      return res.status(404).json({ message: "Program not found" });
-    }
-
-    res.json({ message: "Deleted successfully", deleted });
-  } catch {
-    res.status(500).json({ message: "Failed to delete program. Database is required." });
-  }
-});
-
 app.put("/api/languages/:id", auth, adminOnly, async (req, res) => {
   const name = (req.body?.name || "").trim();
   const description = (req.body?.description || "").trim();
@@ -587,6 +805,5 @@ initStorage()
 
     app.listen(PORT, () => {
       console.log(`API running at http://localhost:${PORT}`);
-      console.log(`Admin email: ${ADMIN_EMAIL}`);
     });
   });
