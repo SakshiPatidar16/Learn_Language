@@ -7,6 +7,8 @@ import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { MongoClient } from "mongodb";
 import multer from "multer";
+import { exec } from "node:child_process";
+import os from "node:os";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -788,6 +790,97 @@ app.delete("/api/languages/:id", auth, adminOnly, async (req, res) => {
     res.json({ message: "Deleted successfully", deleted });
   } catch {
     res.status(500).json({ message: "Failed to delete language. Database is required." });
+  }
+});
+
+const PISTON_LANGUAGE_MAP = {
+  java: { language: "java", version: "15.0.2" },
+  python: { language: "python", version: "3.10.0" },
+  javascript: { language: "javascript", version: "18.15.0" },
+  cpp: { language: "c++", version: "10.2.0" },
+  c: { language: "c", version: "10.2.0" },
+  csharp: { language: "csharp", version: "6.12.0" },
+  go: { language: "go", version: "1.16.2" },
+  ruby: { language: "ruby", version: "3.0.1" },
+  rust: { language: "rust", version: "1.50.0" },
+  php: { language: "php", version: "8.2.3" },
+  kotlin: { language: "kotlin", version: "1.8.20" },
+  typescript: { language: "typescript", version: "5.0.3" },
+  swift: { language: "swift", version: "5.9.1" }
+};
+
+function runLocally(code, language) {
+  return new Promise(async (resolve) => {
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "coderun-"));
+    const cleanup = () => fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+
+    try {
+      let cmd;
+      let srcFile;
+
+      if (language === "java") {
+        const match = code.match(/(?:public\s+)?class\s+(\w+)/);
+        const className = match ? match[1] : "Main";
+        srcFile = path.join(tmpDir, `${className}.java`);
+        await fs.writeFile(srcFile, code);
+        cmd = `javac "${srcFile}" -d "${tmpDir}" && java -cp "${tmpDir}" ${className}`;
+      } else if (language === "python") {
+        srcFile = path.join(tmpDir, "main.py");
+        await fs.writeFile(srcFile, code);
+        cmd = `python3 "${srcFile}"`;
+      } else if (language === "javascript") {
+        srcFile = path.join(tmpDir, "main.js");
+        await fs.writeFile(srcFile, code);
+        cmd = `node "${srcFile}"`;
+      } else if (language === "cpp") {
+        srcFile = path.join(tmpDir, "main.cpp");
+        const outFile = path.join(tmpDir, "main");
+        await fs.writeFile(srcFile, code);
+        cmd = `g++ -o "${outFile}" "${srcFile}" && "${outFile}"`;
+      } else if (language === "c") {
+        srcFile = path.join(tmpDir, "main.c");
+        const outFile = path.join(tmpDir, "main");
+        await fs.writeFile(srcFile, code);
+        cmd = `gcc -o "${outFile}" "${srcFile}" && "${outFile}"`;
+      } else if (language === "ruby") {
+        srcFile = path.join(tmpDir, "main.rb");
+        await fs.writeFile(srcFile, code);
+        cmd = `ruby "${srcFile}"`;
+      } else {
+        await cleanup();
+        return resolve({ program_output: "", compiler_error: `Language "${language}" is not supported for local execution.` });
+      }
+
+      exec(cmd, { timeout: 15000 }, (error, stdout, stderr) => {
+        cleanup();
+        resolve({
+          program_output: stdout || "",
+          program_error: stderr && stdout ? stderr : "",
+          compiler_error: stderr && !stdout ? stderr : "",
+          exit_code: error ? (error.code ?? 1) : 0
+        });
+      });
+    } catch (err) {
+      await cleanup();
+      resolve({ program_output: "", compiler_error: err.message });
+    }
+  });
+}
+
+app.post("/api/run-code", async (req, res) => {
+  const { compiler, code } = req.body;
+
+  if (!compiler || !code) {
+    return res.status(400).json({ message: "Compiler and code are required" });
+  }
+
+
+  try {
+    const result = await runLocally(code, compiler);
+    res.json(result);
+  } catch (error) {
+    console.error(`[CODE_RUNNER] Error: ${error.message}`);
+    res.status(500).json({ message: "Failed to run code", error: error.message });
   }
 });
 

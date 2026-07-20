@@ -3,8 +3,8 @@ import Editor from "@monaco-editor/react";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 
-const RUNNER_URL =
-  import.meta.env.VITE_CODE_RUNNER_URL || "https://wandbox.org/api/compile.json";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
+const RUNNER_URL = `${API_BASE}/run-code`;
 
 const LANGUAGE_ALIASES = {
   c: "c",
@@ -28,18 +28,19 @@ const LANGUAGE_ALIASES = {
 };
 
 const COMPILERS = {
-  c: "gcc-head-c",
-  cpp: "gcc-head",
-  csharp: "mono-6.12.0.199",
-  go: "go-1.23.2",
-  java: "openjdk-jdk-22+36",
-  javascript: "nodejs-20.17.0",
-  php: "php-8.3.12",
-  python: "cpython-3.13.8",
-  ruby: "ruby-3.4.9",
-  rust: "rust-1.82.0",
-  swift: "swift-6.0.1",
-  typescript: "typescript-5.6.2"
+  c: "c",
+  cpp: "cpp",
+  csharp: "csharp",
+  go: "go",
+  java: "java",
+  javascript: "javascript",
+  kotlin: "kotlin",
+  php: "php",
+  python: "python",
+  ruby: "ruby",
+  rust: "rust",
+  swift: "swift",
+  typescript: "typescript"
 };
 
 function resolveLanguage(name = "") {
@@ -112,13 +113,33 @@ export default function LanguageTerminal({ languageName, program }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           compiler,
-          code: prepareCodeForRunner(code, runtime)
+          code
         })
       });
-      const result = await response.json();
+
+      let result;
+      const contentType = response.headers.get("content-type");
+      
+      if (contentType && contentType.includes("application/json")) {
+        result = await response.json();
+      } else {
+        const text = await response.text();
+        terminal.writeln(`\x1b[31mRunner returned non-JSON response:\x1b[0m`);
+        terminal.write(text.replace(/\n/g, "\r\n"));
+        setIsRunning(false);
+        return;
+      }
 
       if (!response.ok) {
-        throw new Error(result.message || "The code runner rejected this request.");
+        const errorMsg = result.message || result.error || "The code runner rejected this request.";
+        const hint = result.hint || result.details || "";
+        throw new Error(`${errorMsg}${hint ? "\n" + hint : ""}`);
+      }
+
+      if (result.compiler_error && !result.program_output && !result.program_error && !result.compiler_message) {
+        terminal.writeln(`\x1b[31m${result.compiler_error}\x1b[0m`);
+        setIsRunning(false);
+        return;
       }
 
       const output = [...new Set([
@@ -134,8 +155,12 @@ export default function LanguageTerminal({ languageName, program }) {
         terminal.writeln("");
       }
     } catch (error) {
-      terminal.writeln(`\x1b[31m${error.message || "Unable to run this program."}\x1b[0m`);
-      terminal.writeln("Check the runner URL, network connection, and language name.");
+      const message = error.message || "Unable to run this program.";
+      terminal.writeln(`\x1b[31m${message}\x1b[0m`);
+      terminal.writeln("\x1b[33mTroubleshooting:\x1b[0m");
+      terminal.writeln("• Check the runner URL and network connection");
+      terminal.writeln("• Verify the language name is correct");
+      terminal.writeln("• Try again - the service may be temporarily unavailable");
     } finally {
       setIsRunning(false);
     }
@@ -146,7 +171,7 @@ export default function LanguageTerminal({ languageName, program }) {
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-700 bg-slate-900 px-4 py-3">
         <div>
           <p className="font-semibold text-white">{languageName} workspace</p>
-          <p className="text-xs text-slate-400">Runtime: {compiler || runtime || "unknown"}</p>
+          <p className="text-xs text-slate-400">Runtime: {compiler || runtime || "unknown"} (Piston)</p>
         </div>
         <button
           type="button"

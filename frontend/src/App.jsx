@@ -1105,7 +1105,7 @@ function App() {
               Login required
             </h2>
             <p className="mt-2 text-slate-600">
-              Please sign in to open this page, or register if you do not have an account yet.
+              Please sign in to open this page, or register if you do not have an account yet. 
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <button
