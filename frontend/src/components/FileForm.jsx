@@ -18,42 +18,35 @@ const FileForm = ({
   };
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="grid gap-3 mt-5 bg-blue-50 border border-blue-200 rounded-xl p-4 animate-in fade-in slide-in-from-top-2 duration-300"
-    >
-      <h3 className="text-lg font-semibold text-blue-900 flex items-center gap-2">
-        <span className="text-xl">📄</span> Add Unit Document
-      </h3>
-      
+    <form onSubmit={handleSubmit} className="grid gap-4">
       <div>
-        <label className="text-xs font-bold text-blue-700 uppercase tracking-widest mb-1 block">
-          Document Name (e.g. Unit 1 Overview)
+        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1 block">
+          Document Name
         </label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Enter file display name"
-          className="w-full border border-blue-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+          placeholder="e.g. Unit 1 Overview"
+          className="w-full border border-slate-300 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-blue-400"
           required
         />
       </div>
 
       <div>
-        <label className="text-xs font-bold text-blue-700 uppercase tracking-widest mb-1 block">
+        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1 block">
           Description (Optional)
         </label>
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Enter file description"
-          className="w-full border border-blue-200 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-blue-500 bg-white h-20"
+          className="w-full border border-slate-300 rounded-lg p-3 text-sm outline-none focus:ring-2 focus:ring-blue-400 h-20"
         />
       </div>
 
       <div>
-        <label className="text-xs font-bold text-blue-700 uppercase tracking-widest mb-1 block">
+        <label className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1 block">
           Select File (PDF or Word)
         </label>
         <input
@@ -65,10 +58,10 @@ const FileForm = ({
         />
       </div>
 
-      <div className="flex gap-2 mt-2">
+      <div className="flex gap-2 pt-1">
         <button
           type="submit"
-          className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-bold shadow-md hover:bg-blue-700 transition active:scale-95"
+          className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-bold hover:bg-blue-700 transition"
         >
           Upload Document
         </button>

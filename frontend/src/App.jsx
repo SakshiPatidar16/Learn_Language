@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import Header from "./components/Header";
 import Login from "./components/Login";
@@ -8,6 +8,8 @@ import UnitDetails from "./components/UnitDetails";
 import UnitForm from "./components/UnitForm";
 import ProgramForm from "./components/ProgramForm";
 import FileForm from "./components/FileForm";
+import ToastContainer from "./components/Toast";
+import Modal from "./components/Modal";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:4000/api";
 
@@ -25,6 +27,16 @@ function App() {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [toasts, setToasts] = useState([]);
+
+  const addToast = useCallback((msg, type = "success") => {
+    const id = crypto.randomUUID();
+    setToasts((prev) => [...prev, { id, message: msg, type }]);
+  }, []);
+
+  const removeToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [requestedPath, setRequestedPath] = useState("");
 
@@ -302,8 +314,9 @@ function App() {
       setEditId("");
       setIsLanguageFormOpen(false);
       await fetchLanguages(session);
+      addToast(isEdit ? "Language updated successfully." : "Language added successfully.");
     } catch (err) {
-      setError(err.message || "Failed to save language");
+      addToast(err.message || "Failed to save language", "error");
     }
   }
 
@@ -329,8 +342,9 @@ function App() {
       }
 
       await fetchLanguages(session);
+      addToast("Language deleted successfully.");
     } catch (err) {
-      setError(err.message || "Failed to delete language");
+      addToast(err.message || "Failed to delete language", "error");
     }
   }
 
@@ -377,10 +391,10 @@ function App() {
 
       clearUnitForm();
       setIsUnitFormOpen(false);
-      setMessage(isEdit ? "Unit updated successfully." : "Unit added successfully.");
+      addToast(isEdit ? "Unit updated successfully." : "Unit added successfully.");
       await fetchUnits(activeLanguageId);
     } catch (err) {
-      setError(err.message || "Failed to save unit");
+      addToast(err.message || "Failed to save unit", "error");
     }
   }
 
@@ -411,11 +425,11 @@ function App() {
         throw new Error(data.message || "Failed to upload file");
       }
 
-      setMessage("File uploaded successfully.");
+      addToast("File uploaded successfully.");
       setIsFileFormOpen(false);
       await fetchUnits(activeLanguageId);
     } catch (err) {
-      setError(err.message || "Failed to upload file");
+      addToast(err.message || "Failed to upload file", "error");
     }
   }
 
@@ -436,10 +450,10 @@ function App() {
         throw new Error(data.message || "Failed to remove file");
       }
 
-      setMessage("File removed successfully.");
+      addToast("File removed successfully.");
       await fetchUnits(activeLanguageId);
     } catch (err) {
-      setError(err.message || "Failed to remove file");
+      addToast(err.message || "Failed to remove file", "error");
     }
   }
 
@@ -463,10 +477,10 @@ function App() {
         navigate(`/languages/${encodeURIComponent(activeLanguageId)}`);
       }
 
-      setMessage("Unit deleted successfully.");
+      addToast("Unit deleted successfully.");
       await fetchUnits(activeLanguageId);
     } catch (err) {
-      setError(err.message || "Failed to delete unit");
+      addToast(err.message || "Failed to delete unit", "error");
     }
   }
 
@@ -516,10 +530,10 @@ function App() {
 
       clearProgramForm();
       setIsProgramFormOpen(false);
-      setMessage(isEdit ? "Program updated successfully." : "Program added successfully.");
+      addToast(isEdit ? "Program updated successfully." : "Program added successfully.");
       await fetchPrograms(activeUnitId);
     } catch (err) {
-      setError(err.message || "Failed to save program");
+      addToast(err.message || "Failed to save program", "error");
     }
   }
 
@@ -548,10 +562,10 @@ function App() {
         navigate(`/languages/${encodeURIComponent(activeLanguageId)}/units/${encodeURIComponent(activeUnitId)}`);
       }
 
-      setMessage("Program deleted successfully.");
+      addToast("Program deleted successfully.");
       await fetchPrograms(activeUnitId);
     } catch (err) {
-      setError(err.message || "Failed to delete program");
+      addToast(err.message || "Failed to delete program", "error");
     }
   }
 
@@ -573,9 +587,9 @@ function App() {
       }
 
       setPrograms([]);
-      setMessage("All programs cleared successfully.");
+      addToast("All programs cleared successfully.");
     } catch (err) {
-      setError(err.message || "Failed to clear programs");
+      addToast(err.message || "Failed to clear programs", "error");
     }
   }
 
@@ -679,6 +693,7 @@ function App() {
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-slate-100 via-cyan-50 to-emerald-50">
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
       <Header
         session={session}
         onLogout={logout}
@@ -776,61 +791,66 @@ function App() {
 
       {showHomePage && isAdmin ? (
         <section className="max-w-6xl mx-auto mt-5 px-4 md:px-6">
-          {!isLanguageFormOpen ? (
-            <div className="flex justify-start">
+          <div className="flex justify-start">
+            <button
+              type="button"
+              onClick={() => setIsLanguageFormOpen(true)}
+              className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95"
+            >
+              + Add Language
+            </button>
+          </div>
+        </section>
+      ) : null}
+
+      {isLanguageFormOpen ? (
+        <Modal
+          title={editId ? "Edit Language" : "Add Language"}
+          onClose={() => {
+            setIsLanguageFormOpen(false);
+            setEditId("");
+            setNameInput("");
+            setDescriptionInput("");
+          }}
+        >
+          <form onSubmit={handleAddOrUpdate} className="grid gap-4">
+            <input
+              type="text"
+              placeholder="Language name"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              className="border border-slate-300 rounded-lg p-3 outline-none focus:ring-2 focus:ring-emerald-400"
+              required
+            />
+            <textarea
+              placeholder="Language description"
+              value={descriptionInput}
+              onChange={(e) => setDescriptionInput(e.target.value)}
+              className="border border-slate-300 rounded-lg p-3 min-h-28 outline-none focus:ring-2 focus:ring-emerald-400"
+              required
+            />
+            <div className="flex gap-3 pt-1">
+              <button
+                type="submit"
+                className="bg-emerald-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-emerald-700 transition"
+              >
+                {editId ? "Update" : "Add"}
+              </button>
               <button
                 type="button"
-                onClick={() => setIsLanguageFormOpen(true)}
-                className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95"
+                onClick={() => {
+                  setIsLanguageFormOpen(false);
+                  setEditId("");
+                  setNameInput("");
+                  setDescriptionInput("");
+                }}
+                className="bg-slate-200 text-slate-900 px-5 py-2.5 rounded-lg font-semibold hover:bg-slate-300 transition"
               >
-                + Add Language
+                Cancel
               </button>
             </div>
-          ) : (
-            <div className="bg-white rounded-2xl shadow-md p-4 md:p-6 border border-slate-100 animate-in fade-in slide-in-from-top-4 duration-300">
-              <h2 className="text-xl font-semibold text-slate-800">
-                {editId ? "Edit Language" : "Add Language"}
-              </h2>
-              <form onSubmit={handleAddOrUpdate} className="grid gap-3 mt-4">
-                <input
-                  type="text"
-                  placeholder="Language name"
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  className="border border-slate-300 rounded-lg p-3"
-                  required
-                />
-                <textarea
-                  placeholder="Language description"
-                  value={descriptionInput}
-                  onChange={(e) => setDescriptionInput(e.target.value)}
-                  className="border border-slate-300 rounded-lg p-3 min-h-28"
-                  required
-                />
-                <div className="flex gap-3">
-                  <button
-                    type="submit"
-                    className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-semibold"
-                  >
-                    {editId ? "Update" : "Add"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsLanguageFormOpen(false);
-                      setEditId("");
-                      setNameInput("");
-                      setDescriptionInput("");
-                    }}
-                    className="bg-slate-200 text-slate-900 px-4 py-2 rounded-lg font-semibold"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
-        </section>
+          </form>
+        </Modal>
       ) : null}
 
       {showHomePage ? (
@@ -922,27 +942,32 @@ function App() {
                     type="button"
                     onClick={() => {
                       clearUnitForm();
-                      setIsUnitFormOpen((prev) => !prev);
+                      setIsUnitFormOpen(true);
                     }}
                     className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-semibold"
                   >
-                    {isUnitFormOpen ? "Close Unit Form" : "Add Unit"}
+                    Add Unit
                   </button>
                 </div>
               ) : null}
             </div>
 
             {isAdmin && isUnitFormOpen ? (
-              <UnitForm
-                editingUnitId={editingUnitId}
-                unitNameInput={unitNameInput}
-                setUnitNameInput={setUnitNameInput}
-                unitNotesInput={unitNotesInput}
-                setUnitNotesInput={setUnitNotesInput}
-                handleUnitSubmit={handleUnitSubmit}
-                clearUnitForm={clearUnitForm}
-                setIsUnitFormOpen={setIsUnitFormOpen}
-              />
+              <Modal
+                title={editingUnitId ? "Edit Unit" : "Add Unit"}
+                onClose={() => { clearUnitForm(); setIsUnitFormOpen(false); }}
+              >
+                <UnitForm
+                  editingUnitId={editingUnitId}
+                  unitNameInput={unitNameInput}
+                  setUnitNameInput={setUnitNameInput}
+                  unitNotesInput={unitNotesInput}
+                  setUnitNotesInput={setUnitNotesInput}
+                  handleUnitSubmit={handleUnitSubmit}
+                  clearUnitForm={clearUnitForm}
+                  setIsUnitFormOpen={setIsUnitFormOpen}
+                />
+              </Modal>
             ) : null}
 
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
@@ -1019,25 +1044,32 @@ function App() {
           />
 
           {isAdmin && isFileFormOpen ? (
-            <FileForm
-              onSubmit={handleUnitFileUpload}
-              onCancel={() => setIsFileFormOpen(false)}
-            />
+            <Modal title="Add Unit Document" onClose={() => setIsFileFormOpen(false)}>
+              <FileForm
+                onSubmit={handleUnitFileUpload}
+                onCancel={() => setIsFileFormOpen(false)}
+              />
+            </Modal>
           ) : null}
 
           {isAdmin && isProgramFormOpen ? (
-            <ProgramForm
-              editingProgramId={editingProgramId}
-              questionInput={questionInput}
-              setQuestionInput={setQuestionInput}
-              codeInput={codeInput}
-              setCodeInput={setCodeInput}
-              outputInput={outputInput}
-              setOutputInput={setOutputInput}
-              handleProgramSubmit={handleProgramSubmit}
-              clearProgramForm={clearProgramForm}
-              setIsProgramFormOpen={setIsProgramFormOpen}
-            />
+            <Modal
+              title={editingProgramId ? "Edit Program" : "Add Program"}
+              onClose={() => { clearProgramForm(); setIsProgramFormOpen(false); }}
+            >
+              <ProgramForm
+                editingProgramId={editingProgramId}
+                questionInput={questionInput}
+                setQuestionInput={setQuestionInput}
+                codeInput={codeInput}
+                setCodeInput={setCodeInput}
+                outputInput={outputInput}
+                setOutputInput={setOutputInput}
+                handleProgramSubmit={handleProgramSubmit}
+                clearProgramForm={clearProgramForm}
+                setIsProgramFormOpen={setIsProgramFormOpen}
+              />
+            </Modal>
           ) : null}
         </section>
       ) : null}

@@ -809,13 +809,14 @@ const PISTON_LANGUAGE_MAP = {
   swift: { language: "swift", version: "5.9.1" }
 };
 
-function runLocally(code, language) {
+function runLocally(code, language, stdin = "") {
   return new Promise(async (resolve) => {
     const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), "coderun-"));
     const cleanup = () => fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {});
 
     try {
-      let cmd;
+      let compileCmd = null;
+      let runArgs;
       let srcFile;
 
       if (language === "java") {
@@ -823,43 +824,84 @@ function runLocally(code, language) {
         const className = match ? match[1] : "Main";
         srcFile = path.join(tmpDir, `${className}.java`);
         await fs.writeFile(srcFile, code);
-        cmd = `javac "${srcFile}" -d "${tmpDir}" && java -cp "${tmpDir}" ${className}`;
+        compileCmd = `javac "${srcFile}" -d "${tmpDir}"`;
+        runArgs = ["java", ["-cp", tmpDir, className]];
       } else if (language === "python") {
         srcFile = path.join(tmpDir, "main.py");
         await fs.writeFile(srcFile, code);
-        cmd = `python3 "${srcFile}"`;
+        runArgs = ["python3", [srcFile]];
       } else if (language === "javascript") {
         srcFile = path.join(tmpDir, "main.js");
         await fs.writeFile(srcFile, code);
-        cmd = `node "${srcFile}"`;
+        runArgs = ["node", [srcFile]];
       } else if (language === "cpp") {
         srcFile = path.join(tmpDir, "main.cpp");
         const outFile = path.join(tmpDir, "main");
         await fs.writeFile(srcFile, code);
-        cmd = `g++ -o "${outFile}" "${srcFile}" && "${outFile}"`;
+        compileCmd = `g++ -o "${outFile}" "${srcFile}"`;
+        runArgs = [outFile, []];
       } else if (language === "c") {
         srcFile = path.join(tmpDir, "main.c");
         const outFile = path.join(tmpDir, "main");
         await fs.writeFile(srcFile, code);
-        cmd = `gcc -o "${outFile}" "${srcFile}" && "${outFile}"`;
+        compileCmd = `gcc -o "${outFile}" "${srcFile}"`;
+        runArgs = [outFile, []];
       } else if (language === "ruby") {
         srcFile = path.join(tmpDir, "main.rb");
         await fs.writeFile(srcFile, code);
-        cmd = `ruby "${srcFile}"`;
+        runArgs = ["ruby", [srcFile]];
       } else {
         await cleanup();
         return resolve({ program_output: "", compiler_error: `Language "${language}" is not supported for local execution.` });
       }
 
-      exec(cmd, { timeout: 15000 }, (error, stdout, stderr) => {
-        cleanup();
+      // Compile step (if needed)
+      if (compileCmd) {
+        const compileResult = await new Promise((res) => {
+          exec(compileCmd, { timeout: 15000 }, (error, stdout, stderr) => {
+            res({ error, stdout, stderr });
+          });
+        });
+        if (compileResult.error) {
+          await cleanup();
+          return resolve({
+            program_output: "",
+            compiler_error: compileResult.stderr || compileResult.error.message,
+            exit_code: compileResult.error.code ?? 1
+          });
+        }
+      }
+
+      // Run step — pipe stdin so interactive programs (scanf, input(), etc.) work
+      const { spawn } = await import("node:child_process");
+      const child = spawn(runArgs[0], runArgs[1], { timeout: 15000 });
+
+      let stdout = "";
+      let stderr = "";
+
+      child.stdout.on("data", (chunk) => { stdout += chunk.toString(); });
+      child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
+
+      child.on("close", async (code) => {
+        await cleanup();
         resolve({
           program_output: stdout || "",
           program_error: stderr && stdout ? stderr : "",
           compiler_error: stderr && !stdout ? stderr : "",
-          exit_code: error ? (error.code ?? 1) : 0
+          exit_code: code ?? 0
         });
       });
+
+      child.on("error", async (err) => {
+        await cleanup();
+        resolve({ program_output: "", compiler_error: err.message });
+      });
+
+      // Write stdin and close the stream so the program sees EOF after input
+      if (stdin) {
+        child.stdin.write(stdin);
+      }
+      child.stdin.end();
     } catch (err) {
       await cleanup();
       resolve({ program_output: "", compiler_error: err.message });
@@ -868,15 +910,14 @@ function runLocally(code, language) {
 }
 
 app.post("/api/run-code", async (req, res) => {
-  const { compiler, code } = req.body;
+  const { compiler, code, stdin = "" } = req.body;
 
   if (!compiler || !code) {
     return res.status(400).json({ message: "Compiler and code are required" });
   }
 
-
   try {
-    const result = await runLocally(code, compiler);
+    const result = await runLocally(code, compiler, stdin);
     res.json(result);
   } catch (error) {
     console.error(`[CODE_RUNNER] Error: ${error.message}`);

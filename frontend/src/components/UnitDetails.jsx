@@ -42,22 +42,22 @@ const UnitDetails = ({
               type="button"
               onClick={() => {
                 setIsProgramFormOpen(false);
-                setIsFileFormOpen((prev) => !prev);
+                setIsFileFormOpen(true);
               }}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 hover:bg-blue-700 transition shadow-sm"
             >
-              <span>{isFileFormOpen ? "Close File Form" : "➕ Add File"}</span>
+              <span>➕ Add File</span>
             </button>
             <button
               type="button"
               onClick={() => {
                 setIsFileFormOpen(false);
                 clearProgramForm();
-                setIsProgramFormOpen((prev) => !prev);
+                setIsProgramFormOpen(true);
               }}
               className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-semibold"
             >
-              {isProgramFormOpen ? "Close Program Form" : "Add Program"}
+              Add Program
             </button>
           </div>
         ) : null}

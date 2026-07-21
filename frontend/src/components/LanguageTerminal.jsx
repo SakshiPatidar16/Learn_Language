@@ -63,6 +63,7 @@ export default function LanguageTerminal({ languageName, program }) {
   const terminalElementRef = useRef(null);
   const terminalRef = useRef(null);
   const [code, setCode] = useState(program.code);
+  const [stdin, setStdin] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const runtime = useMemo(() => resolveLanguage(languageName), [languageName]);
   const compiler = COMPILERS[runtime];
@@ -113,7 +114,8 @@ export default function LanguageTerminal({ languageName, program }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           compiler,
-          code
+          code,
+          stdin
         })
       });
 
@@ -184,9 +186,9 @@ export default function LanguageTerminal({ languageName, program }) {
       </div>
 
       <div className="grid lg:grid-cols-2">
-        <div className="min-h-[420px] border-b border-slate-700 lg:border-b-0 lg:border-r">
+        <div className="flex min-h-[420px] flex-col border-b border-slate-700 lg:border-b-0 lg:border-r">
           <Editor
-            height="420px"
+            height="300px"
             language={runtime}
             value={code}
             onChange={(value) => setCode(value ?? "")}
@@ -199,6 +201,16 @@ export default function LanguageTerminal({ languageName, program }) {
               automaticLayout: true
             }}
           />
+          <div className="border-t border-slate-700 bg-slate-900 p-2">
+            <label className="mb-1 block text-xs font-medium text-slate-400">Standard Input (stdin)</label>
+            <textarea
+              value={stdin}
+              onChange={(e) => setStdin(e.target.value)}
+              placeholder="Provide program input here (one value per line)..."
+              rows={4}
+              className="w-full resize-none rounded bg-slate-950 p-2 font-mono text-sm text-slate-200 placeholder-slate-600 outline-none focus:ring-1 focus:ring-emerald-500"
+            />
+          </div>
         </div>
         <div className="min-h-[420px] bg-slate-950 p-3">
           <div ref={terminalElementRef} className="h-[396px]" aria-label={`${languageName} terminal output`} />
