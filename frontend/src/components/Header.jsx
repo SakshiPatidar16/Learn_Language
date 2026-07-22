@@ -1,10 +1,15 @@
+import { useNavigate } from "react-router-dom";
 import logoImage from "../assets/Logo.png";
 
 function Header({ session, onLogout, onOpenSignIn, onOpenSignUp }) {
+  const navigate = useNavigate();
   return (
-    <header className="w-full bg-slate-900 text-white shadow-lg">
+    <header className="w-full bg-slate-900 text-white shadow-lg sticky top-0 z-50">
       <div className="max-w-6xl mx-auto px-4 md:px-8 py-3 md:py-4 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div
+          className="flex items-center gap-3 cursor-pointer"
+          onClick={() => navigate("/")}
+        >
           <img
             src={logoImage}
             alt="Learn Program"

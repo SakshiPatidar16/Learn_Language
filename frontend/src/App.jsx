@@ -435,7 +435,6 @@ function App() {
 
   async function handleRemoveFile(fileId) {
     if (!isAdmin || !session || !activeUnitId || !fileId) return;
-    if (!confirm("Are you sure you want to remove this file?")) return;
 
     try {
       const res = await fetch(`${API_BASE}/units/${activeUnitId}/files/${fileId}`, {
@@ -970,7 +969,7 @@ function App() {
               </Modal>
             ) : null}
 
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+            <div className="grid gap-3 mt-6">
               {loadingUnits ? <p className="text-slate-600">Loading units...</p> : null}
 
               {!loadingUnits && units.length === 0 ? (
@@ -981,38 +980,36 @@ function App() {
                 <article
                   key={unit.id}
                   onClick={() => openUnitPrograms(unit)}
-                  className="group relative border border-slate-200 bg-slate-50 p-5 rounded-2xl hover:border-emerald-300 hover:bg-emerald-50/30 transition cursor-pointer"
+                  className="group flex items-center justify-between border border-slate-200 bg-white p-4 rounded-2xl hover:border-emerald-300 hover:bg-emerald-50/30 transition cursor-pointer shadow-sm"
                 >
-                  <h3 className="text-lg font-bold text-slate-800 group-hover:text-emerald-700">
-                    {unit.name}
-                  </h3>
-                  <div className="mt-4 flex items-center justify-between">
-                    <span className="text-xs text-slate-500">View Notes & Programs &rarr;</span>
-                    {isAdmin ? (
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            startUnitEdit(unit);
-                          }}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleUnitDelete(unit.id);
-                          }}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    ) : null}
+                  <div className="flex flex-col gap-0.5 min-w-0">
+                    <h3 className="text-base font-bold text-slate-800 group-hover:text-emerald-700 leading-tight">
+                      {unit.name}
+                    </h3>
+                    {unit.notes ? (
+                      <p className="text-sm text-slate-500 truncate max-w-lg">{unit.notes}</p>
+                    ) : (
+                      <p className="text-xs text-slate-400">View Notes & Programs →</p>
+                    )}
                   </div>
+                  {isAdmin ? (
+                    <div className="flex gap-2 shrink-0 ml-4" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        type="button"
+                        onClick={() => startUnitEdit(unit)}
+                        className="px-3 py-1.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleUnitDelete(unit.id)}
+                        className="px-3 py-1.5 text-sm font-semibold text-white bg-red-600 hover:bg-red-700 rounded-lg transition"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ) : null}
                 </article>
               ))}
             </div>

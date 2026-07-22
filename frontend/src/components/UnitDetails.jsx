@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 const UnitDetails = ({
   activeUnit,
@@ -20,7 +20,69 @@ const UnitDetails = ({
   activeLanguageId,
   activeUnitId
 }) => {
+  const [confirm, setConfirm] = useState({ open: false, message: "", onConfirm: null });
+
+  const askConfirm = (message, onConfirm) => {
+    setConfirm({ open: true, message, onConfirm });
+  };
+
+  const closeConfirm = () => setConfirm({ open: false, message: "", onConfirm: null });
+
+  const handleConfirm = () => {
+    if (confirm.onConfirm) confirm.onConfirm();
+    closeConfirm();
+  };
+
+  const forceDownload = async (fileUrl, filename) => {
+    const serverRoot = API_BASE.replace("/api", "");
+    const filePath = fileUrl.startsWith(serverRoot)
+      ? fileUrl.slice(serverRoot.length + 1)
+      : fileUrl;
+    const downloadUrl = `${API_BASE}/download?path=${encodeURIComponent(filePath)}`;
+    try {
+      const res = await fetch(downloadUrl);
+      if (!res.ok) throw new Error("Download failed");
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = filename || "file";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(blobUrl);
+    } catch {
+      window.open(downloadUrl, "_blank", "noreferrer");
+    }
+  };
+
   return (
+    <>
+    {confirm.open && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div className="bg-white rounded-2xl shadow-2xl p-7 max-w-sm w-full mx-4 border border-slate-200">
+          <div className="flex items-center gap-3 mb-4">
+            <span className="text-3xl">🗑️</span>
+            <h3 className="text-lg font-bold text-slate-800">Confirm Delete</h3>
+          </div>
+          <p className="text-slate-600 mb-6">{confirm.message}</p>
+          <div className="flex gap-3 justify-end">
+            <button
+              onClick={closeConfirm}
+              className="px-5 py-2 rounded-lg border border-slate-300 text-slate-700 font-semibold hover:bg-slate-100 transition"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleConfirm}
+              className="px-5 py-2 rounded-lg bg-red-600 text-white font-semibold hover:bg-red-700 transition shadow-sm"
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     <div className="bg-white rounded-2xl shadow-md border border-slate-100 p-5 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -78,14 +140,12 @@ const UnitDetails = ({
                     <span className="font-bold text-slate-800">Study Guide (PDF)</span>
                     <span className="text-xs text-slate-500">Legacy attachment</span>
                   </div>
-                  <a
-                    href={`${API_BASE.replace("/api", "")}/${activeUnit.pdfPath}`}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    onClick={() => forceDownload(`${API_BASE.replace("/api", "")}/${activeUnit.pdfPath}`, "Study_Guide.pdf")}
                     className="flex items-center gap-2 bg-red-50 text-red-600 px-4 py-2 rounded-lg font-bold hover:bg-red-600 hover:text-white transition"
                   >
-                    <span className="text-lg">📄</span> View PDF
-                  </a>
+                    <span className="text-lg">⬇️</span> Download PDF
+                  </button>
                 </div>
               )}
               {activeUnit?.wordPath && (
@@ -94,14 +154,12 @@ const UnitDetails = ({
                     <span className="font-bold text-slate-800">Study Guide (Word)</span>
                     <span className="text-xs text-slate-500">Legacy attachment</span>
                   </div>
-                  <a
-                    href={`${API_BASE.replace("/api", "")}/${activeUnit.wordPath}`}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    onClick={() => forceDownload(`${API_BASE.replace("/api", "")}/${activeUnit.wordPath}`, "Study_Guide.docx")}
                     className="flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-lg font-bold hover:bg-blue-600 hover:text-white transition"
                   >
-                    <span className="text-lg">📝</span> View Word
-                  </a>
+                    <span className="text-lg">⬇️</span> Download Word
+                  </button>
                 </div>
               )}
               
@@ -115,10 +173,8 @@ const UnitDetails = ({
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <a
-                      href={`${API_BASE.replace("/api", "")}/${file.path}`}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      onClick={() => forceDownload(`${API_BASE.replace("/api", "")}/${file.path}`, file.name)}
                       title={file.name}
                       className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold transition shadow-sm ${
                         file.type === "pdf" 
@@ -126,16 +182,16 @@ const UnitDetails = ({
                           : "bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white"
                       }`}
                     >
-                      <span className="text-lg">{file.type === "pdf" ? "📄" : "📝"}</span>
-                      <span className="text-sm">View {file.type === "pdf" ? "PDF" : "Word"}</span>
-                    </a>
+                      <span className="text-lg">⬇️</span>
+                      <span className="text-sm">Download {file.type === "pdf" ? "PDF" : "Word"}</span>
+                    </button>
                     {isAdmin && (
                       <button
-                        onClick={() => handleRemoveFile(file.id)}
-                        className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition"
-                        title="Remove file"
+                        onClick={() => askConfirm(`Delete "${file.name}"? This cannot be undone.`, () => handleRemoveFile(file.id))}
+                        className="px-3 py-2 text-sm font-semibold text-white bg-red-500 hover:bg-red-600 rounded-lg transition"
+                        title="Delete file"
                       >
-                        <span className="text-xl leading-none">×</span>
+                        Delete
                       </button>
                     )}
                   </div>
@@ -215,7 +271,7 @@ const UnitDetails = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => handleProgramDelete(program.id)}
+                  onClick={() => askConfirm(`Delete program "${program.question}"? This cannot be undone.`, () => handleProgramDelete(program.id))}
                   className="bg-red-600 text-white px-3 py-2 rounded-lg text-sm"
                 >
                   Delete
@@ -226,6 +282,7 @@ const UnitDetails = ({
         ))}
       </div>
     </div>
+    </>
   );
 };
 

@@ -243,6 +243,14 @@ async function deleteLanguageById(id) {
   }
 
   if (unitsCollection) {
+    const units = await unitsCollection.find({ languageId: id }, { projection: { _id: 0 } }).toArray();
+    for (const unit of units) {
+      for (const file of (unit.files || [])) {
+        if (file.path) {
+          await fs.unlink(path.resolve(__dirname, file.path)).catch(() => {});
+        }
+      }
+    }
     await unitsCollection.deleteMany({ languageId: id });
   }
 
@@ -331,6 +339,12 @@ async function deleteUnitById(unitId) {
 
   const existing = await unitsCollection.findOne({ id: unitId }, { projection: { _id: 0 } });
   if (!existing) return null;
+
+  for (const file of (existing.files || [])) {
+    if (file.path) {
+      await fs.unlink(path.resolve(__dirname, file.path)).catch(() => {});
+    }
+  }
 
   await unitsCollection.deleteOne({ id: unitId });
 
@@ -431,6 +445,25 @@ app.get("/api/health", (_req, res) => {
     ok: true,
     message: "Backend is running",
     storage: languagesCollection ? "mongodb" : "not-connected"
+  });
+});
+
+// Force-download any uploaded file
+app.get("/api/download", (req, res) => {
+  const filePath = req.query.path;
+  if (!filePath) return res.status(400).json({ message: "Missing path" });
+
+  // Prevent path traversal — only allow files inside uploads/
+  const uploadsDir = path.resolve(__dirname, "uploads");
+  const resolved = path.resolve(__dirname, decodeURIComponent(filePath));
+  if (!resolved.startsWith(uploadsDir + path.sep) && resolved !== uploadsDir) {
+    return res.status(403).json({ message: "Forbidden" });
+  }
+
+  const filename = path.basename(resolved);
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.sendFile(resolved, (err) => {
+    if (err) res.status(404).json({ message: "File not found" });
   });
 });
 
@@ -565,8 +598,13 @@ app.delete("/api/units/:unitId/files/:fileId", auth, adminOnly, async (req, res)
     const unit = await unitsCollection.findOne({ id: unitId });
     if (!unit) return res.status(404).json({ message: "Unit not found" });
 
+    const fileToDelete = (unit.files || []).find(f => f.id === fileId);
     const files = (unit.files || []).filter(f => f.id !== fileId);
     await unitsCollection.updateOne({ id: unitId }, { $set: { files } });
+
+    if (fileToDelete?.path) {
+      await fs.unlink(path.resolve(__dirname, fileToDelete.path)).catch(() => {});
+    }
     
     res.json({ message: "File removed successfully" });
   } catch {
