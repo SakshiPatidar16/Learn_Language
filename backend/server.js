@@ -19,9 +19,23 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+const ready = initStorage()
+  .catch((err) => {
+    console.error("MongoDB connection failed, using JSON file storage.", err.message);
+  })
+  .then(() => userService.ensureAdmin())
+  .catch((err) => {
+    console.error("Failed to ensure admin user.", err.message);
+  });
+
 app.use(cors());
 app.use(express.json());
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+app.use(async (_req, _res, next) => {
+  await ready;
+  next();
+});
 
 // Health check
 app.get("/api/health", (_req, res) => {
@@ -53,17 +67,12 @@ app.use("/api", unitRoutes);
 app.use("/api", programRoutes);
 app.use("/api", codeRunnerRoutes);
 
-// Bootstrap
-initStorage()
-  .catch((err) => {
-    console.error("MongoDB connection failed, using JSON file storage.", err.message);
-  })
-  .finally(() => {
-    userService.ensureAdmin().catch((err) => {
-      console.error("Failed to ensure admin user.", err.message);
-    });
-
+if (!process.env.VERCEL) {
+  ready.finally(() => {
     app.listen(PORT, () => {
       console.log(`API running at http://localhost:${PORT}`);
     });
   });
+}
+
+export default app;
