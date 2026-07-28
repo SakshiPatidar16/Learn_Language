@@ -26,7 +26,7 @@ services:
         sync: false
 
       - key: MONGODB_URI
-        value: mongodb+srv://sakshiptr7_db_user:Sakshi%403313@cluster0.zpsezfs.mongodb.net/study_program?retryWrites=true&w=majority
+        sync: false
 
       - key: MONGODB_DB_NAME
         value: study_program
