@@ -1,0 +1,48 @@
+services:
+  # Backend Service
+  - type: web
+    name: learn-language-backend
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: cd backend && npm install
+    startCommand: cd backend && npm start
+    envVars:
+      - key: PORT
+        value: 4000
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        value: your-super-secret-jwt-key-change-this-in-production
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: ADMIN_EMAIL
+        value: admin123@yopmail.com
+      - key: ADMIN_PASSWORD
+        value: Admin@123
+      - key: MONGODB_URI
+        fromDatabase:
+          name: mongodb-atlas
+          property: uri
+      - key: MONGODB_DB_NAME
+        value: study_program
+      - key: MONGODB_COLLECTION
+        value: languages
+      - key: MONGODB_USERS_COLLECTION
+        value: users
+      - key: MONGODB_PROGRAMS_COLLECTION
+        value: programs
+      - key: MONGODB_UNITS_COLLECTION
+        value: units
+
+  # Frontend Service
+  - type: static_site
+    name: learn-language-frontend
+    runtime: static
+    region: oregon
+    plan: free
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://learn-language-backend.onrender.com
