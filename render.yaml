@@ -12,44 +12,35 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
-
       - key: JWT_SECRET
         sync: false
-
       - key: JWT_EXPIRES_IN
         value: 7d
-
       - key: ADMIN_EMAIL
         value: admin123@yopmail.com
-
       - key: ADMIN_PASSWORD
         sync: false
-
       - key: MONGODB_URI
         sync: false
-
       - key: MONGODB_DB_NAME
         value: study_program
-
       - key: MONGODB_COLLECTION
         value: languages
-
       - key: MONGODB_USERS_COLLECTION
         value: users
-
       - key: MONGODB_PROGRAMS_COLLECTION
         value: programs
-
       - key: MONGODB_UNITS_COLLECTION
         value: units
 
   # Frontend
-  - type: static
+  - type: web
     name: learn-language-frontend
+    runtime: static
     rootDir: frontend
     buildCommand: npm install && npm run build
     staticPublishPath: dist
 
     envVars:
-      - key: VITE_API_URL
+      - key: VITE_API_BASE_URL
         value: https://learn-language-backend.onrender.com
