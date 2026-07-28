@@ -53,4 +53,4 @@ services:
 
     envVars:
       - key: VITE_API_BASE_URL
-        value: https://learn-language-backend-pdlp.onrender.com/api
+        value: https://learn-language-backend-g7bv.onrender.com/api
