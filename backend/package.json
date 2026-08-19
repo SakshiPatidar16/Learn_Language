@@ -16,6 +16,7 @@
     "express-validator": "^7.3.2",
     "jsonwebtoken": "^9.0.3",
     "mongodb": "^6.9.0",
-    "multer": "^2.2.0"
+    "multer": "^2.2.0",
+    "ws": "^8.21.3"
   }
 }

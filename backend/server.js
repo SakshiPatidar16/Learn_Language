@@ -3,10 +3,12 @@ import express from "express";
 import cors from "cors";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { WebSocketServer } from "ws";
 
 import { PORT } from "./config/constants.js";
 import { initStorage } from "./config/db.js";
 import { userService } from "./services/userService.js";
+import { codeRunnerService } from "./services/codeRunnerService.js";
 
 import authRoutes from "./routes/authRoutes.js";
 import languageRoutes from "./routes/languageRoutes.js";
@@ -78,11 +80,78 @@ app.use("/api", unitRoutes);
 app.use("/api", programRoutes);
 app.use("/api", codeRunnerRoutes);
 
+function setupCodeRunnerSocket(server) {
+  const wss = new WebSocketServer({ server, path: "/api/run-code/live" });
+
+  wss.on("connection", (socket) => {
+    let session = null;
+
+    socket.on("message", async (rawMessage) => {
+      let message;
+
+      try {
+        message = JSON.parse(rawMessage.toString());
+      } catch {
+        socket.send(JSON.stringify({ type: "error", data: "Invalid runner message." }));
+        return;
+      }
+
+      if (message.type === "start") {
+        if (session) session.kill();
+
+        const { compiler, code } = message;
+        if (!compiler || !code) {
+          socket.send(JSON.stringify({ type: "error", data: "Compiler and code are required." }));
+          socket.send(JSON.stringify({ type: "exit", code: 1 }));
+          return;
+        }
+
+        session = await codeRunnerService.runInteractive({
+          code,
+          language: compiler,
+          onOutput(data) {
+            if (socket.readyState === 1) {
+              socket.send(JSON.stringify({ type: "output", data }));
+            }
+          },
+          onError(data) {
+            if (socket.readyState === 1) {
+              socket.send(JSON.stringify({ type: "error", data }));
+            }
+          },
+          onExit(code) {
+            if (socket.readyState === 1) {
+              socket.send(JSON.stringify({ type: "exit", code }));
+            }
+            session = null;
+          }
+        });
+        return;
+      }
+
+      if (message.type === "input" && session) {
+        session.write(message.data || "");
+        return;
+      }
+
+      if (message.type === "stop" && session) {
+        session.kill();
+        session = null;
+      }
+    });
+
+    socket.on("close", () => {
+      if (session) session.kill();
+    });
+  });
+}
+
 if (!process.env.VERCEL) {
   ready.finally(() => {
-    app.listen(PORT, () => {
+    const server = app.listen(PORT, () => {
       console.log(`API running at http://localhost:${PORT}`);
     });
+    setupCodeRunnerSocket(server);
   });
 }
 
