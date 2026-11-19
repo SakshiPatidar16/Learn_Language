@@ -25,6 +25,27 @@ services:
       - key: ADMIN_PASSWORD
         sync: false
 
+      - key: FRONTEND_URL
+        value: https://learn-language-frontend.onrender.com
+
+      - key: SMTP_HOST
+        sync: false
+
+      - key: SMTP_PORT
+        value: "587"
+
+      - key: SMTP_SECURE
+        value: "false"
+
+      - key: SMTP_USER
+        sync: false
+
+      - key: SMTP_PASSWORD
+        sync: false
+
+      - key: SMTP_FROM
+        sync: false
+
       - key: MONGODB_URI
         sync: false
 

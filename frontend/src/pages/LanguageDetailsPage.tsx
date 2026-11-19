@@ -3,7 +3,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import Modal from "../components/Modal";
 import UnitForm from "../components/UnitForm";
 import ToastContainer from "../components/Toast";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { useToast } from "../hooks/useToast";
 import { getLanguages } from "../api/languageApi";
 import { getUnitsByLanguage, createUnit, updateUnit, deleteUnit } from "../api/unitApi";
@@ -45,14 +45,14 @@ export default function LanguageDetailsPage() {
     } finally {
       setLoadingUnits(false);
     }
-  }, [decodedLanguageId]);
+  }, [decodedLanguageId, addToast]);
 
   useEffect(() => {
     getLanguages(session.token)
       .then((langs) => setLanguage(langs.find((l) => l.id === decodedLanguageId) || null))
       .catch(() => {});
     loadUnits();
-  }, [decodedLanguageId, session.token]);
+  }, [decodedLanguageId, loadUnits, session.token]);
 
   async function handleUnitSubmit(e) {
     e.preventDefault();
@@ -151,9 +151,9 @@ export default function LanguageDetailsPage() {
               <article
                 key={unit.id}
                 onClick={() => navigate(`/languages/${languageId}/units/${encodeURIComponent(unit.id)}`)}
-                className="group flex items-center justify-between border border-slate-200 bg-white p-4 rounded-2xl hover:border-emerald-300 hover:bg-emerald-50/30 transition cursor-pointer shadow-sm"
+                className="group flex flex-col gap-3 border border-slate-200 bg-white p-4 rounded-2xl hover:border-emerald-300 hover:bg-emerald-50/30 transition cursor-pointer shadow-sm sm:flex-row sm:items-center sm:justify-between"
               >
-                <div className="flex flex-col gap-0.5 min-w-0">
+                <div className="flex min-w-0 flex-col gap-0.5">
                   <h3 className="text-base font-bold text-slate-800 group-hover:text-emerald-700 leading-tight">
                     {unit.name}
                   </h3>
@@ -163,7 +163,7 @@ export default function LanguageDetailsPage() {
                   }
                 </div>
                 {isAdmin && (
-                  <div className="flex gap-2 shrink-0 ml-4" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex shrink-0 gap-2 self-end sm:ml-4 sm:self-auto" onClick={(e) => e.stopPropagation()}>
                     <button type="button" onClick={() => startUnitEdit(unit)} className="px-3 py-1.5 text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition">
                       Edit
                     </button>

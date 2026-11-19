@@ -2,12 +2,11 @@ import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Modal from "../components/Modal";
 import ToastContainer from "../components/Toast";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { useToast } from "../hooks/useToast";
 import {
   getPublicLanguages,
   getLanguages,
-  createLanguage,
   updateLanguage,
   deleteLanguage
 } from "../api/languageApi";
@@ -52,21 +51,15 @@ export default function HomePage() {
     setDescriptionInput("");
   }
 
-  async function handleAddOrUpdate(e) {
+  async function handleLanguageUpdate(e) {
     e.preventDefault();
-    const isEdit = Boolean(editId);
     try {
-      if (isEdit) {
-        await updateLanguage(editId, { name: nameInput, description: descriptionInput }, session.token);
-        addToast("Language updated successfully.");
-      } else {
-        await createLanguage({ name: nameInput, description: descriptionInput }, session.token);
-        addToast("Language added successfully.");
-      }
+      await updateLanguage(editId, { name: nameInput, description: descriptionInput }, session.token);
+      addToast("Language updated successfully.");
       closeLanguageForm();
       await loadLanguages();
     } catch (err) {
-      addToast(err.message || "Failed to save language", "error");
+      addToast(err.message || "Failed to update language", "error");
     }
   }
 
@@ -133,21 +126,9 @@ export default function HomePage() {
         </div>
       </section>
 
-      {isAdmin && (
-        <section className="max-w-6xl mx-auto mt-5 px-4 md:px-6">
-          <button
-            type="button"
-            onClick={() => setIsLanguageFormOpen(true)}
-            className="bg-emerald-600 text-white px-6 py-3 rounded-2xl font-bold shadow-lg shadow-emerald-200 hover:bg-emerald-700 transition-all active:scale-95"
-          >
-            + Add Language
-          </button>
-        </section>
-      )}
-
       {isLanguageFormOpen && (
-        <Modal title={editId ? "Edit Language" : "Add Language"} onClose={closeLanguageForm}>
-          <form onSubmit={handleAddOrUpdate} className="grid gap-4">
+        <Modal title="Edit Language" onClose={closeLanguageForm}>
+          <form onSubmit={handleLanguageUpdate} className="grid gap-4">
             <input
               type="text"
               placeholder="Language name"
@@ -165,7 +146,7 @@ export default function HomePage() {
             />
             <div className="flex gap-3 pt-1">
               <button type="submit" className="bg-emerald-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-emerald-700 transition">
-                {editId ? "Update" : "Add"}
+                Update
               </button>
               <button type="button" onClick={closeLanguageForm} className="bg-slate-200 text-slate-900 px-5 py-2.5 rounded-lg font-semibold hover:bg-slate-300 transition">
                 Cancel

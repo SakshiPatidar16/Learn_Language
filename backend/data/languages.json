@@ -26,5 +26,54 @@
     "description": "A high-performance systems programming language used in games and real-time software.",
     "createdBy": "admin123@yopmail.com",
     "updatedAt": "2026-07-02T00:00:00.000Z"
+  },
+  {
+    "id": "5",
+    "name": "C",
+    "description": "A compiled systems programming language used for operating systems and embedded software.",
+    "createdBy": "admin123@yopmail.com",
+    "updatedAt": "2026-07-02T00:00:00.000Z"
+  },
+  {
+    "id": "6",
+    "name": "Ruby",
+    "description": "A dynamic programming language known for readable syntax and web development.",
+    "createdBy": "admin123@yopmail.com",
+    "updatedAt": "2026-07-02T00:00:00.000Z"
+  },
+  {
+    "id": "7",
+    "name": "HTML",
+    "description": "A markup language for structuring web pages. Code can be previewed safely in the browser.",
+    "createdBy": "admin123@yopmail.com",
+    "updatedAt": "2026-07-02T00:00:00.000Z"
+  },
+  {
+    "id": "8",
+    "name": "CSS",
+    "description": "A stylesheet language for designing web pages. Styles can be previewed safely in the browser.",
+    "createdBy": "admin123@yopmail.com",
+    "updatedAt": "2026-07-02T00:00:00.000Z"
+  },
+  {
+    "id": "9",
+    "name": "React",
+    "description": "A JavaScript library for building user interfaces. Running React examples requires a project-style preview.",
+    "createdBy": "admin123@yopmail.com",
+    "updatedAt": "2026-07-02T00:00:00.000Z"
+  },
+  {
+    "id": "10",
+    "name": "Node.js",
+    "description": "A JavaScript runtime for server-side programs. Runs through the existing JavaScript runtime.",
+    "createdBy": "admin123@yopmail.com",
+    "updatedAt": "2026-07-02T00:00:00.000Z"
+  },
+  {
+    "id": "11",
+    "name": "Express",
+    "description": "A Node.js web framework. Running Express apps requires a project-style server preview.",
+    "createdBy": "admin123@yopmail.com",
+    "updatedAt": "2026-07-02T00:00:00.000Z"
   }
 ]

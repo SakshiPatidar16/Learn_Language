@@ -46,6 +46,76 @@ export const userService = {
     return user;
   },
 
+  async setPasswordReset(email, passwordResetTokenHash, passwordResetExpiresAt) {
+    if (usersCollection) {
+      const result = await usersCollection.updateOne(
+        { email },
+        { $set: { passwordResetTokenHash, passwordResetExpiresAt } }
+      );
+      return result.matchedCount > 0;
+    }
+
+    const users = await readUsersFromFile();
+    const user = users.find((item) => item.email === email);
+    if (!user) return false;
+    user.passwordResetTokenHash = passwordResetTokenHash;
+    user.passwordResetExpiresAt = passwordResetExpiresAt;
+    await writeUsersToFile(users);
+    return true;
+  },
+
+  async clearPasswordReset(email, passwordResetTokenHash) {
+    if (usersCollection) {
+      await usersCollection.updateOne(
+        { email, passwordResetTokenHash },
+        { $unset: { passwordResetTokenHash: "", passwordResetExpiresAt: "" } }
+      );
+      return;
+    }
+
+    const users = await readUsersFromFile();
+    const user = users.find(
+      (item) => item.email === email && item.passwordResetTokenHash === passwordResetTokenHash
+    );
+    if (!user) return;
+    delete user.passwordResetTokenHash;
+    delete user.passwordResetExpiresAt;
+    await writeUsersToFile(users);
+  },
+
+  async resetPassword(passwordResetTokenHash, password) {
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
+    const now = new Date().toISOString();
+
+    if (usersCollection) {
+      const result = await usersCollection.updateOne(
+        {
+          passwordResetTokenHash,
+          passwordResetExpiresAt: { $gt: now }
+        },
+        {
+          $set: { password: passwordHash, updatedAt: now },
+          $unset: { passwordResetTokenHash: "", passwordResetExpiresAt: "" }
+        }
+      );
+      return result.modifiedCount > 0;
+    }
+
+    const users = await readUsersFromFile();
+    const user = users.find(
+      (item) =>
+        item.passwordResetTokenHash === passwordResetTokenHash &&
+        Date.parse(item.passwordResetExpiresAt) > Date.parse(now)
+    );
+    if (!user) return false;
+    user.password = passwordHash;
+    user.updatedAt = now;
+    delete user.passwordResetTokenHash;
+    delete user.passwordResetExpiresAt;
+    await writeUsersToFile(users);
+    return true;
+  },
+
   async ensureAdmin() {
     const hashedPassword = await bcrypt.hash(ADMIN_PASSWORD, SALT_ROUNDS);
     const adminUser = {

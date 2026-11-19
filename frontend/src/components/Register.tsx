@@ -6,6 +6,8 @@ import Pic3 from '../assets/pic3.jpg';
 import Pic4 from '../assets/pic4.jpg';
 import Pic5 from '../assets/pic5.jpg';
 
+const images = [Pic1, Pic2, Pic3, Pic4, Pic5];
+
 function Register({
   name,
   email,
@@ -24,7 +26,6 @@ function Register({
 }) {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
-  const images = [Pic1, Pic2, Pic3, Pic4, Pic5];
   const [bgIndex, setBgIndex] = useState(0);
 
   React.useEffect(() => {

@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { FiEye, FiEyeOff } from 'react-icons/fi';
+import { Link } from 'react-router-dom';
 import Pic1 from '../assets/pic1.jpg';
 import Pic2 from '../assets/pic2.jpg';
 import Pic3 from '../assets/pic3.jpg';
 import Pic4 from '../assets/pic4.jpg';
 import Pic5 from '../assets/pic5.jpg';
+
+const images = [Pic1, Pic2, Pic3, Pic4, Pic5];
 
 function Login({
   email,
@@ -17,7 +20,6 @@ function Login({
   onCancel
 }) {
   const [showPassword, setShowPassword] = useState(false);
-  const images = [Pic1, Pic2, Pic3, Pic4, Pic5];
   const [bgIndex, setBgIndex] = useState(0);
 
   useEffect(() => {
@@ -100,6 +102,12 @@ function Login({
                 Cancel
               </button>
             </div>
+            <Link
+              to="/forgot-password"
+              className="justify-self-start text-sm font-semibold text-emerald-700 hover:text-emerald-800 hover:underline"
+            >
+              Forgot password?
+            </Link>
           </form>
 
           {error ? <p className="text-red-600 mt-4 text-sm">{error}</p> : null}

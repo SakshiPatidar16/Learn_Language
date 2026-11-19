@@ -30,12 +30,17 @@ export async function initStorage() {
   programsCollection = db.collection(MONGODB_PROGRAMS_COLLECTION);
   unitsCollection = db.collection(MONGODB_UNITS_COLLECTION);
 
-  const count = await languagesCollection.countDocuments();
-  if (count === 0) {
-    const seedItems = await readLanguagesFromFile();
-    if (seedItems.length > 0) {
-      await languagesCollection.insertMany(seedItems);
-    }
+  const seedItems = await readLanguagesFromFile();
+  if (seedItems.length > 0) {
+    await languagesCollection.bulkWrite(
+      seedItems.map((item) => ({
+        updateOne: {
+          filter: { id: item.id },
+          update: { $setOnInsert: item },
+          upsert: true
+        }
+      }))
+    );
   }
 
   console.log(`Connected to MongoDB database: ${MONGODB_DB_NAME}`);

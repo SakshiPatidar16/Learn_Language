@@ -5,11 +5,8 @@ const UnitDetails = ({
   activeLanguage,
   isAdmin,
   API_BASE,
-  handleUnitFileUpload,
   handleRemoveFile,
-  isProgramFormOpen,
   setIsProgramFormOpen,
-  isFileFormOpen,
   setIsFileFormOpen,
   clearProgramForm,
   programs,
@@ -60,7 +57,7 @@ const UnitDetails = ({
     <>
     {confirm.open && (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-        <div className="bg-white rounded-2xl shadow-2xl p-7 max-w-sm w-full mx-4 border border-slate-200">
+    <div className="bg-white rounded-2xl shadow-2xl p-5 sm:p-7 max-w-sm w-full mx-4 border border-slate-200">
           <div className="flex items-center gap-3 mb-4">
             <span className="text-3xl">🗑️</span>
             <h3 className="text-lg font-bold text-slate-800">Confirm Delete</h3>
@@ -83,7 +80,7 @@ const UnitDetails = ({
         </div>
       </div>
     )}
-    <div className="bg-white rounded-2xl shadow-md border border-slate-100 p-5 md:p-6">
+    <div className="min-w-0 bg-white rounded-2xl shadow-md border border-slate-100 p-4 sm:p-5 md:p-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <button
@@ -99,14 +96,14 @@ const UnitDetails = ({
         </div>
 
         {isAdmin ? (
-          <div className="flex gap-2">
+          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
             <button
               type="button"
               onClick={() => {
                 setIsProgramFormOpen(false);
                 setIsFileFormOpen(true);
               }}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center gap-2 hover:bg-blue-700 transition shadow-sm"
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-blue-700 transition shadow-sm"
             >
               <span>➕ Add File</span>
             </button>
@@ -135,8 +132,8 @@ const UnitDetails = ({
             <div className="grid gap-3">
               {/* Backward compatibility for single files */}
               {activeUnit?.pdfPath && (
-                <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:border-red-200 transition group">
-                  <div className="flex flex-col">
+                <div className="flex flex-col gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:border-red-200 transition group sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 flex-col">
                     <span className="font-bold text-slate-800">Study Guide (PDF)</span>
                     <span className="text-xs text-slate-500">Legacy attachment</span>
                   </div>
@@ -149,8 +146,8 @@ const UnitDetails = ({
                 </div>
               )}
               {activeUnit?.wordPath && (
-                <div className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:border-blue-200 transition group">
-                  <div className="flex flex-col">
+                <div className="flex flex-col gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:border-blue-200 transition group sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 flex-col">
                     <span className="font-bold text-slate-800">Study Guide (Word)</span>
                     <span className="text-xs text-slate-500">Legacy attachment</span>
                   </div>
@@ -165,14 +162,14 @@ const UnitDetails = ({
               
               {/* New multi-file support */}
               {activeUnit?.files?.map((file) => (
-                <div key={file.id} className="flex items-center justify-between bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:border-slate-300 transition group">
-                  <div className="flex flex-col flex-1">
+                <div key={file.id} className="flex flex-col gap-3 bg-white p-3 rounded-xl border border-slate-200 shadow-sm hover:border-slate-300 transition group sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex min-w-0 flex-1 flex-col break-words">
                     <span className="font-bold text-slate-800">{file.name}</span>
                     {file.description && (
                       <span className="text-xs text-slate-500">{file.description}</span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <button
                       onClick={() => forceDownload(`${API_BASE.replace("/api", "")}/${file.path}`, file.name)}
                       title={file.name}
@@ -234,8 +231,8 @@ const UnitDetails = ({
 
         {programs.map((program) => (
           <article key={program.id} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div className="flex justify-between items-start gap-4">
-              <h3 className="text-lg font-semibold text-slate-800">Q. {program.question}</h3>
+            <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between">
+              <h3 className="min-w-0 break-words text-lg font-semibold text-slate-800">Q. {program.question}</h3>
               <button
                 onClick={() =>
                   navigate(

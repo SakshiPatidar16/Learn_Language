@@ -5,7 +5,7 @@ import UnitDetails from "../components/UnitDetails";
 import FileForm from "../components/FileForm";
 import ProgramForm from "../components/ProgramForm";
 import ToastContainer from "../components/Toast";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { useToast } from "../hooks/useToast";
 import { getLanguages } from "../api/languageApi";
 import { getUnitsByLanguage, uploadUnitFile, removeUnitFile } from "../api/unitApi";
@@ -56,7 +56,7 @@ export default function UnitProgramsPage() {
     } catch (err) {
       addToast(err.message || "Failed to load data", "error");
     }
-  }, [decodedLanguageId, session.token]);
+  }, [addToast, decodedLanguageId, session.token]);
 
   const loadPrograms = useCallback(async () => {
     setLoadingPrograms(true);
@@ -68,7 +68,7 @@ export default function UnitProgramsPage() {
     } finally {
       setLoadingPrograms(false);
     }
-  }, [decodedUnitId]);
+  }, [addToast, decodedUnitId]);
 
   useEffect(() => {
     loadUnits();
@@ -147,11 +147,8 @@ export default function UnitProgramsPage() {
           activeLanguage={language}
           isAdmin={isAdmin}
           API_BASE={API_BASE}
-          handleUnitFileUpload={handleUnitFileUpload}
           handleRemoveFile={handleRemoveFile}
-          isProgramFormOpen={isProgramFormOpen}
           setIsProgramFormOpen={setIsProgramFormOpen}
-          isFileFormOpen={isFileFormOpen}
           setIsFileFormOpen={setIsFileFormOpen}
           clearProgramForm={clearProgramForm}
           programs={programs}

@@ -1,0 +1,22 @@
+[
+  {
+    "id": "1d7350a8-120b-40ad-8d68-b1f6529136c8",
+    "languageId": "7",
+    "unitId": "2fa63665-b16d-4a43-bbf1-282717a12c62",
+    "question": "Create a simple HTML heading",
+    "code": "<!DOCTYPE html>\n<html>\n<head>\n    <title>Question 1</title>\n</head>\n<body>\n    <h1>Welcome to HTML</h1>\n    <p>This is my first HTML page.</p>\n</body>\n</html>",
+    "output": "Welcome to HTML\nThis is my first HTML page.",
+    "createdBy": "admin123@yopmail.com",
+    "updatedAt": "2026-11-19T09:45:41.592Z"
+  },
+  {
+    "id": "c0c8c024-3562-4f66-9241-e32128cbe2df",
+    "languageId": "8",
+    "unitId": "5ab0f2cf-f323-43b0-8d62-5f7a4d9f1041",
+    "question": "zx",
+    "code": "<!DOCTYPE html>\n<html>\n<head>\n    <title>Profile Card</title>\n    <style>\n        body {\n            font-family: Arial;\n            background: #f0f0f0;\n            text-align: center;\n        }\n\n        .card {\n            background: white;\n            width: 300px;\n            padding: 25px;\n            margin: 80px auto;\n            border-radius: 15px;\n            box-shadow: 0 4px 10px #aaa;\n        }\n\n        h2 {\n            color: blue;\n        }\n\n        button {\n            background: blue;\n            color: white;\n            padding: 10px 20px;\n            border: none;\n            border-radius: 5px;\n            cursor: pointer;\n        }\n    </style>\n</head>\n<body>\n\n    <div class=\"card\">\n        <h2>John Doe</h2>\n        <p>MERN Stack Developer</p>\n        <button>View Profile</button>\n    </div>\n\n</body>\n</html>",
+    "output": "zx",
+    "createdBy": "admin123@yopmail.com",
+    "updatedAt": "2026-11-19T09:46:36.982Z"
+  }
+]

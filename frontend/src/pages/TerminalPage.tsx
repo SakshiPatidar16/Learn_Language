@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import LanguageTerminal from "../components/LanguageTerminal";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 import { getLanguages } from "../api/languageApi";
 import { getProgramsByUnit } from "../api/programApi";
 

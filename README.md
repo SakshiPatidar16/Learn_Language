@@ -108,9 +108,11 @@ npm run build
 
 ## Notes
 
-- If `MONGODB_URI` is not configured, the backend falls back to JSON file storage.
+- If `MONGODB_URI` is not configured or MongoDB is unreachable, the backend uses JSON files in `backend/data/` for language, user, unit, and program data.
+- JSON file storage is suitable for local development; set `MONGODB_URI` to a reachable MongoDB connection string for durable deployed storage.
 - The admin credentials are seeded automatically.
 - Frontend uses the Vite environment variable `VITE_API_BASE_URL` if you want to point to a remote backend.
+- Password recovery requires SMTP settings (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, and `SMTP_FROM`) plus `FRONTEND_URL` in the backend environment. Reset links expire after 15 minutes and can only be used once.
 
 ## Optional Improvements
 

@@ -1,0 +1,45 @@
+[
+  {
+    "id": "8a65a81f-f136-40bf-b250-0365c4f8eda2",
+    "languageId": "1",
+    "name": "sd",
+    "notes": "sd",
+    "files": [
+      {
+        "id": "5c9df925-b8f8-4974-81e6-a06504f31dae",
+        "name": "sd",
+        "description": "",
+        "path": "/home/emizen/Learn_Language/backend/uploads/1795079684844-276015017-developer proposal.docx",
+        "type": "word"
+      }
+    ],
+    "createdBy": "admin123@yopmail.com",
+    "updatedAt": "2026-11-19T09:14:45.099Z"
+  },
+  {
+    "id": "2fa63665-b16d-4a43-bbf1-282717a12c62",
+    "languageId": "7",
+    "name": "as",
+    "notes": "",
+    "files": [
+      {
+        "id": "04151fa3-6e4e-4f12-8469-244a712f4e94",
+        "name": "as",
+        "description": "",
+        "path": "/home/emizen/Learn_Language/backend/uploads/1795081446166-173739144-developer proposal.docx",
+        "type": "word"
+      }
+    ],
+    "createdBy": "admin123@yopmail.com",
+    "updatedAt": "2026-11-19T09:44:06.230Z"
+  },
+  {
+    "id": "5ab0f2cf-f323-43b0-8d62-5f7a4d9f1041",
+    "languageId": "8",
+    "name": "sassa",
+    "notes": "",
+    "files": [],
+    "createdBy": "admin123@yopmail.com",
+    "updatedAt": "2026-11-19T09:46:26.632Z"
+  }
+]

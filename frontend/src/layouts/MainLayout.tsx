@@ -1,7 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { Outlet } from "react-router-dom";
 import Header from "../components/Header";
-import { useAuth } from "../context/AuthContext";
+import { useAuth } from "../context/useAuth";
 
 export default function MainLayout() {
   const { session, logout } = useAuth();

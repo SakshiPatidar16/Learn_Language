@@ -18,6 +18,21 @@ export const loginRules = [
   body("password").notEmpty().withMessage("Password is required")
 ];
 
+export const passwordResetRequestRules = [
+  body("email").trim().isEmail().withMessage("Valid email is required").normalizeEmail()
+];
+
+export const passwordResetRules = [
+  body("token").trim().isLength({ min: 64, max: 64 }).isHexadecimal().withMessage("Invalid reset token"),
+  body("password")
+    .isLength({ min: 6 })
+    .withMessage("Password must be at least 6 characters")
+    .matches(/[A-Z]/)
+    .withMessage("Password must contain at least one uppercase letter")
+    .matches(/[0-9]/)
+    .withMessage("Password must contain at least one number")
+];
+
 export const languageRules = [
   body("name").trim().notEmpty().withMessage("Name is required"),
   body("description").trim().notEmpty().withMessage("Description is required")

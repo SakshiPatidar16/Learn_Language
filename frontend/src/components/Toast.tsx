@@ -55,7 +55,7 @@ export default function ToastContainer({ toasts, onRemove }) {
   return (
     <div
       aria-live="polite"
-      className="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"
+      className="fixed top-4 left-4 right-4 sm:left-auto sm:w-80 z-50 flex flex-col gap-2 pointer-events-none"
     >
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} onRemove={onRemove} />
